@@ -169,6 +169,17 @@ def log(text, pfad=None):
             pass
 
 
+def problem_melden(stamm, cfg, text):
+    """Bot kann nicht laufen: statt eines veralteten Stands zeigt die Uebersicht diesen Grund an."""
+    pfad = os.path.join(HIER, f"status-{stamm}.json")
+    try:
+        with open(pfad + ".tmp", "w", encoding="utf-8") as f:
+            json.dump({"bot": cfg["richtung"], "problem": text, "erwartet": cfg.get("expected_login"), "geschrieben": time.time()}, f)
+        os.replace(pfad + ".tmp", pfad)
+    except OSError:
+        pass
+
+
 def lade_config(pfad):
     with open(pfad, "r", encoding="utf-8") as f:
         roh = json.load(f)
@@ -201,10 +212,14 @@ def main():
     if cfg.get("portable"):
         init_kw["portable"] = True
     if not mt5.initialize(**init_kw):
-        L(f"⛔ initialize() fehlgeschlagen: {mt5.last_error()} — laeuft das Terminal?"); sys.exit(1)
+        L(f"⛔ initialize() fehlgeschlagen: {mt5.last_error()} — laeuft das Terminal?")
+        problem_melden(stamm, cfg, f"Keine Verbindung zum Terminal {cfg['terminal_path']} ({mt5.last_error()}).")
+        sys.exit(1)
     konto = mt5.account_info()
     if konto is None or int(konto.login) != int(cfg["expected_login"]):
         L(f"⛔ falsches Konto im Terminal ({getattr(konto, 'login', None)}) — erwartet {cfg['expected_login']}. ABBRUCH, keine Order.")
+        problem_melden(stamm, cfg, f"Im Terminal ist Konto {getattr(konto, 'login', '–')} eingeloggt, eingestellt ist {cfg['expected_login']}. "
+                                   f"Kontonummer in den Einstellungen korrigieren oder im Terminal das richtige Konto einloggen.")
         mt5.shutdown(); sys.exit(1)
     sym = cfg["symbol"]
     mt5.symbol_select(sym, True)

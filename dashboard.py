@@ -63,17 +63,30 @@ def selbst_update():
 
 
 def daten():
-    bots = {}
+    bots = {}; probleme = {}
     for pfad in sorted(glob.glob(os.path.join(HIER, "status-*.json"))):
         stamm = os.path.basename(pfad)[len("status-"):-len(".json")]
         st = lies(pfad, None)
         if not st:
             continue
-        st["alter_s"] = round(time.time() - float(st.get("geschrieben", 0)), 1)
+        bot = st.get("bot", stamm)
+        alter = time.time() - float(st.get("geschrieben", 0))
+        cfg = lies(os.path.join(HIER, f"{stamm}.json"), {})
+        if st.get("problem"):
+            probleme[bot] = st["problem"] if alter < 120 else "Bot laeuft nicht — START-ALLES.bat starten."
+            continue
+        # Stand eines anderen als des eingestellten Kontos (z. B. Demo vor dem Wechsel) nie anzeigen.
+        if cfg.get("expected_login") and st.get("konto") and int(st["konto"]) != int(cfg["expected_login"]):
+            probleme[bot] = f"Noch kein Stand fuer Konto {cfg['expected_login']} — der Bot startet gerade oder laeuft nicht."
+            continue
+        if alter > 600:
+            probleme[bot] = "Bot laeuft nicht — START-ALLES.bat starten."
+            continue
+        st["alter_s"] = round(alter, 1)
         st["verlauf"] = lies(os.path.join(HIER, f"verlauf-{stamm}.json"), [])
         st["log"] = log_ende(os.path.join(HIER, f"log-{stamm}.txt"))
-        bots[st.get("bot", stamm)] = st
-    return {"jetzt": time.time(), "version": seiten_version(), "bots": bots}
+        bots[bot] = st
+    return {"jetzt": time.time(), "version": seiten_version(), "bots": bots, "probleme": probleme}
 
 
 EINST_FELDER = ("start_lot", "schritt_lot", "schritt_prozent", "start", "ende")
@@ -164,7 +177,7 @@ def statistik_zuruecksetzen():
     (dadurch beginnt auch die Tageskurve neu). Anker und Stufe des laufenden Tages bleiben."""
     ziel = os.path.join(HIER, "archiv", time.strftime("zurueckgesetzt-%Y%m%d-%H%M%S"))
     os.makedirs(ziel, exist_ok=True)
-    for muster in ("verlauf-*.json", "log-*.txt"):
+    for muster in ("verlauf-*.json", "log-*.txt", "status-*.json"):
         for p in glob.glob(os.path.join(HIER, muster)):
             try:
                 os.replace(p, os.path.join(ziel, os.path.basename(p)))

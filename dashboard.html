@@ -134,7 +134,7 @@ pre{margin:12px 0 0;font:12px/1.55 var(--mono);white-space:pre-wrap;word-break:b
   <div id="e-meldung" hidden></div>
   <div class="aktionen"><button type="submit" class="knopf haupt" id="e-speichern">Speichern</button><button type="button" class="knopf" id="e-reset">Statistik zurücksetzen</button><button type="button" class="knopf" id="e-abbrechen">Schließen</button></div>
 </form>
-<div id="leerstart" class="karte start" hidden><div style="font-size:17px;font-weight:650;margin-bottom:6px">Noch kein Bot gestartet</div><div class="leise">start-long.bat und start-short.bat ausführen – die Übersicht füllt sich dann von selbst.</div></div>
+<div id="leerstart" class="karte start" hidden><div style="font-size:17px;font-weight:650;margin-bottom:6px">Kein Bot aktiv</div><div class="leise" id="leertext">START-ALLES.bat ausführen – die Übersicht füllt sich dann von selbst.</div></div>
 <div id="inhalt" hidden>
   <div class="held"><div class="karte" id="held"></div><div class="kacheln" id="kacheln"></div></div>
   <div class="drei"><div id="botlong"></div><div class="karte"><div class="kopf"><span class="titel">Grid-Leiter</span><span class="leise" id="leiterinfo"></span></div><div id="leiter"></div></div><div id="botshort"></div></div>
@@ -235,9 +235,11 @@ function tabs(id,namen,aktiv){setze(id,namen.map(function(n){return'<button type
 
 function zeige(d){
   letzterStatus=d.bots||{};startKnopfZeigen();
-  var b=d.bots,namen=["long","short"].filter(function(n){return b[n]});
+  var b=d.bots,namen=["long","short"].filter(function(n){return b[n]}),pr=d.probleme||{};
   $("leerstart").hidden=namen.length>0;$("inhalt").hidden=!namen.length;
-  if(!namen.length){$("punkt").className="punkt";setze("chips","");return}
+  if(!namen.length){$("punkt").className="punkt aus";setze("chips","");
+    var txt=["long","short"].filter(function(n){return pr[n]}).map(function(n){return"<b>"+(n==="long"?"Long-Bot":"Short-Bot")+":</b> "+esc(pr[n])}).join("<br>");
+    setze("leertext",txt||"START-ALLES.bat ausführen – die Übersicht füllt sich dann von selbst.");return}
   var e=b[namen[0]],w=e.waehrung,sum=function(f){return namen.reduce(function(a,n){return a+(b[n][f]||0)},0)};
   var alleTot=namen.every(function(n){return tot(b[n])}),einerTot=namen.some(function(n){return tot(b[n])});
   $("punkt").className="punkt "+(alleTot?"aus":einerTot?"":"an");
@@ -257,8 +259,8 @@ function zeige(d){
     ["Equity beide Konten",zahl(sum("equity"),2)+" "+esc(w),"Guthaben "+zahl(sum("guthaben"),2)],
     ["Gewinntage",t.length?plus+" von "+t.length:"–",bestTag?"bester "+geld(bestTag.paar)+" · schlechtester "+geld(schlTag.paar):"noch kein abgeschlossener Tag"]];
   setze("kacheln",K.map(function(k){return'<div class="karte kachel"><span class="titel">'+k[0]+'</span><span class="wert">'+k[1]+'</span><span class="unter">'+k[2]+'</span></div>'}).join(""));
-  setze("botlong",b.long?botKarte(b.long):'<div class="karte leer">Long-Bot läuft nicht.</div>');
-  setze("botshort",b.short?botKarte(b.short):'<div class="karte leer">Short-Bot läuft nicht.</div>');
+  setze("botlong",b.long?botKarte(b.long):'<div class="karte leer"><b>Long-Bot</b><br>'+esc(pr.long||"läuft nicht")+'</div>');
+  setze("botshort",b.short?botKarte(b.short):'<div class="karte leer"><b>Short-Bot</b><br>'+esc(pr.short||"läuft nicht")+'</div>');
   setze("leiter",leiter(e));
   setze("leiterinfo",e.anker?"Stufe "+vz(e.stufe)+" · heute "+vz(e.stufe_min)+" bis "+vz(e.stufe_max):"");
   setze("kurve",kurve(b));
