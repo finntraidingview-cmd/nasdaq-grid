@@ -286,6 +286,7 @@ def main():
                 kurve["punkte"].append([minute, round(real + offen, 2)])
             schreibe_json(status_pfad, {
                 "bot": cfg["richtung"], "konto": int(k.login) if k else None, "waehrung": getattr(k, "currency", ""),
+                "demo": bool(k) and int(getattr(k, "trade_mode", -1)) == 0,
                 "scharf": bool(cfg["scharf"]), "version": version, "geschrieben": time.time(),
                 "serverzeit": jetzt.strftime("%Y-%m-%d %H:%M:%S"), "kurs": round(mitte, 2),
                 "tag": tag, "aktiv": bool(aktiv), "anker": z.get("anker"), "stufe": z.get("cur", 0),

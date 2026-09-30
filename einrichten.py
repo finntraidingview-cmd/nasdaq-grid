@@ -75,12 +75,14 @@ def pruefe(richtung):
     print(f"\n--- Pruefung {richtung} ---")
     if not mt5.initialize(path=cfg["terminal_path"]):
         print(f"  ❌ keine Verbindung: {mt5.last_error()} (laeuft das Terminal, ist das Konto eingeloggt?)")
-        return False
+        return False, False
     try:
         k = mt5.account_info()
         if k is None:
-            print("  ❌ kein Konto eingeloggt"); return False
+            print("  ❌ kein Konto eingeloggt"); return False, False
         ok = int(k.login) == int(cfg["expected_login"])
+        demo = int(getattr(k, "trade_mode", -1)) == 0
+        print(f"  Kontoart: {'DEMO' if demo else 'LIVE (echtes Geld)'}")
         print(f"  Konto {k.login} bei {k.server}, Guthaben {k.balance:.2f} {k.currency}, Hebel 1:{k.leverage} — {'✅ passt' if ok else '❌ erwartet ' + str(cfg['expected_login'])}")
         hedging = int(getattr(k, "margin_mode", -1)) == 2
         print(f"  Kontoart: {'Hedging ✅' if hedging else 'kein Hedging-Konto ❌ (Teilverkauf funktioniert trotzdem, aber bitte melden)'}")
@@ -89,7 +91,7 @@ def pruefe(richtung):
         mt5.symbol_select(cfg["symbol"], True)
         si = mt5.symbol_info(cfg["symbol"])
         if si is None:
-            print(f"  ❌ Symbol {cfg['symbol']} gibt es in diesem Terminal nicht"); return False
+            print(f"  ❌ Symbol {cfg['symbol']} gibt es in diesem Terminal nicht"); return False, False
         tick = mt5.symbol_info_tick(cfg["symbol"])
         print(f"  {cfg['symbol']}: Mindest-Lot {si.volume_min}, Lot-Schritt {si.volume_step}, Kontraktgroesse {si.trade_contract_size}, "
               f"Kurs {getattr(tick, 'bid', 0)} / {getattr(tick, 'ask', 0)}")
@@ -98,7 +100,7 @@ def pruefe(richtung):
             print(f"  Serverzeit laut letztem Tick: {dt.datetime.utcfromtimestamp(int(tick.time)):%d.%m.%Y %H:%M:%S}")
         if cfg["schritt_lot"] < si.volume_min - 1e-9:
             print(f"  ❌ schritt_lot {cfg['schritt_lot']} liegt unter dem Mindest-Lot {si.volume_min}"); ok = False
-        return ok
+        return ok, demo
     finally:
         mt5.shutdown()
 
@@ -111,7 +113,18 @@ def main():
         print(f"  geschrieben: {schreibe(richtung, exe, login)}")
     if input("\nVerbindung jetzt pruefen? Dabei wird nichts gehandelt. (j/n): ").strip().lower().startswith("j"):
         alles = [pruefe(r) for r in ("long", "short")]
-        print("\n✅ Beide Konten erreichbar." if all(alles) else "\n❌ Mindestens eine Pruefung ist fehlgeschlagen — siehe oben.")
+        print("\n✅ Beide Konten erreichbar." if all(a[0] for a in alles) else "\n❌ Mindestens eine Pruefung ist fehlgeschlagen — siehe oben.")
+        # Nur Demokonten darf die Hilfe scharf schalten; Live-Konten schaltet man bewusst von Hand in der Config.
+        if all(a[0] and a[1] for a in alles):
+            if input("\nBeide Konten sind DEMO. Gleich scharf schalten (die Bots handeln dann wirklich auf den Demokonten)? (j/n): ").strip().lower().startswith("j"):
+                for r in ("long", "short"):
+                    p = os.path.join(HIER, f"config-{r}.json")
+                    with open(p, "r", encoding="utf-8") as f:
+                        c = json.load(f)
+                    c["scharf"] = True
+                    with open(p, "w", encoding="utf-8") as f:
+                        json.dump(c, f, indent=2, ensure_ascii=False)
+                print("  scharf geschaltet (nur Demo).")
     print("\nNaechster Schritt: start-long.bat und start-short.bat starten (Trockenlauf, es wird noch nichts gesendet).")
 
 

@@ -115,7 +115,7 @@ function tot(b){return b.alter_s>30}
 function botKarte(b){
   var name=b.bot==="long"?"Long-Bot":"Short-Bot",abw=Math.abs((b.soll_lot||0)-(b.ist_lot||0))>0.001,max=Math.max(b.start_lot*2,0.01);
   var pillen=tot(b)?'<span class="pille schlecht">antwortet nicht · '+Math.round(b.alter_s)+' s</span>':
-    (b.scharf?'<span class="pille gut">scharf</span>':'<span class="pille warn">Trockenlauf</span>')+(b.aktiv?'<span class="pille gut">läuft</span>':'<span class="pille flach">wartet auf '+esc(b.start)+'</span>');
+    (b.demo?'<span class="pille flach">Demo</span>':'<span class="pille schlecht">Live</span>')+(b.scharf?'<span class="pille gut">scharf</span>':'<span class="pille warn">Trockenlauf</span>')+(b.aktiv?'<span class="pille gut">läuft</span>':'<span class="pille flach">wartet auf '+esc(b.start)+'</span>');
   return '<div class="karte bot '+b.bot+'"><div class="kopf"><h2>'+name+'</h2>'+pillen+'</div>'+
    '<div class="titel">Heute</div><div class="botzahl '+kl(b.tagesergebnis)+'">'+geld(b.tagesergebnis,b.waehrung)+'</div>'+
    '<dl><dt>offen</dt><dd class="'+kl(b.offen)+'">'+geld(b.offen)+'</dd><dt>realisiert</dt><dd class="'+kl(b.realisiert)+'">'+geld(b.realisiert)+'</dd>'+
