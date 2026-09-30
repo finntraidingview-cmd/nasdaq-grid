@@ -302,17 +302,19 @@ $("e-reset").addEventListener("click",function(){
   resetBestaetigt=false;$("e-reset").textContent="Statistik zurücksetzen";$("e-reset").className="knopf";
   senden("/api/reset",{},function(a){einstMeldung(a.ok?"gut":"schlecht",a.meldung)})});
 // Start/Stopp oben: Starten braucht einen zweiten Klick, vorher steht da, auf welchen Konten gehandelt wird.
-var startBestaetigt=false;
+var startBestaetigt=false,startUhr=null;
+// Rueckfrage verfaellt nach 8 Sekunden — ein vergessener roter Knopf darf nicht spaeter aus Versehen alles schliessen.
+function startScharf(){clearTimeout(startUhr);startUhr=setTimeout(function(){startBestaetigt=false;startMeldung("",null);startKnopfZeigen()},8000)}
 function startMeldung(art,html){var m=$("startmeldung");m.hidden=!html;m.className="meldung "+art;m.innerHTML=html||""}
 function laeuftGerade(){var b=letzterStatus;return["long","short"].some(function(n){return b[n]&&b[n].scharf&&b[n].laeuft!==false})}
 $("startknopf").addEventListener("click",function(){
   if(laeuftGerade()){
-    if(!startBestaetigt){startBestaetigt=true;$("startknopf").textContent="Ja, stoppen und alles schließen";$("startknopf").className="knopf gefahr";startMeldung("warn","Stoppen schließt alle Positionen beider Bots. Zum Bestätigen noch einmal klicken.");return}
+    if(!startBestaetigt){startBestaetigt=true;startScharf();$("startknopf").textContent="Ja, stoppen und alles schließen";$("startknopf").className="knopf gefahr";startMeldung("warn","Stoppen schließt alle Positionen beider Bots. Zum Bestätigen innerhalb von 8 Sekunden noch einmal klicken.");return}
     startBestaetigt=false;senden("/api/stop",{},function(a){startMeldung(a.ok?"gut":"schlecht",esc(a.meldung))});return}
   if(!startBestaetigt){
     var txt=["long","short"].map(function(n){var b=letzterStatus[n];return(n==="long"?"Long":"Short")+" auf Konto "+(b?esc(b.konto)+(b.demo?" (Demo)":" <b>(LIVE, echtes Geld)</b>"):"?")}).join(" · ");
-    startBestaetigt=true;$("startknopf").textContent="Ja, jetzt starten";$("startknopf").className="knopf gefahr";
-    startMeldung("warn","<b>Starten:</b> "+txt+". Beide eröffnen sofort ihre Start-Position. Zum Bestätigen noch einmal klicken.");return}
+    startBestaetigt=true;startScharf();$("startknopf").textContent="Ja, jetzt starten";$("startknopf").className="knopf gefahr";
+    startMeldung("warn","<b>Starten:</b> "+txt+". Beide eröffnen sofort ihre Start-Position. Zum Bestätigen innerhalb von 8 Sekunden noch einmal klicken.");return}
   startBestaetigt=false;senden("/api/start",{},function(a){startMeldung(a.ok?"gut":"schlecht",esc(a.meldung))})});
 function startKnopfZeigen(){if(startBestaetigt)return;var an=laeuftGerade();$("startknopf").textContent=an?"Stoppen":"Starten";$("startknopf").className="knopf "+(an?"":"haupt")}
 
