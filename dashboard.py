@@ -67,11 +67,99 @@ def daten():
     return {"jetzt": time.time(), "version": seiten_version(), "bots": bots}
 
 
+EINST_FELDER = ("start_lot", "schritt_lot", "schritt_prozent", "start", "ende")
+
+
+def einstellungen_lesen():
+    out = {}
+    for r in ("long", "short"):
+        c = lies(os.path.join(HIER, f"config-{r}.json"), None)
+        if c is None:
+            c = lies(os.path.join(HIER, f"config-{r}.vorlage.json"), {})
+            c["expected_login"] = 0; c["terminal_path"] = ""
+        c.pop("_hinweis", None)
+        out[r] = c
+    return out
+
+
+def uhrzeit_ok(t):
+    try:
+        h, m = str(t).split(":"); return 0 <= int(h) <= 23 and 0 <= int(m) <= 59 and len(str(t)) == 5
+    except ValueError:
+        return False
+
+
+def einstellungen_speichern(neu):
+    """Prueft und schreibt config-long.json und config-short.json. Liefert (ok, meldung)."""
+    alt = einstellungen_lesen()
+    g = neu.get("gemeinsam") or {}
+    try:
+        gemeinsam = {"start_lot": round(float(g["start_lot"]), 2), "schritt_lot": round(float(g["schritt_lot"]), 2),
+                     "schritt_prozent": round(float(g["schritt_prozent"]), 3), "start": str(g["start"]), "ende": str(g["ende"])}
+    except (KeyError, ValueError, TypeError):
+        return False, "Lot, Abstand und Zeiten muessen ausgefuellt sein."
+    if not (0 <= gemeinsam["start_lot"] <= 10): return False, "Start-Lot zwischen 0 und 10."
+    if not (0.01 <= gemeinsam["schritt_lot"] <= 1): return False, "Lot je Stufe zwischen 0,01 und 1."
+    if not (0.01 <= gemeinsam["schritt_prozent"] <= 5): return False, "Abstand zwischen 0,01 und 5 %."
+    if not (uhrzeit_ok(gemeinsam["start"]) and uhrzeit_ok(gemeinsam["ende"])): return False, "Zeiten als HH:MM angeben."
+    if gemeinsam["start"] >= gemeinsam["ende"]: return False, "Start muss vor Ende liegen."
+    geschrieben = []
+    for r in ("long", "short"):
+        e = neu.get(r) or {}
+        try:
+            login = int(str(e.get("expected_login", "")).strip())
+        except ValueError:
+            return False, f"Kontonummer {r} nur Ziffern."
+        pfad = str(e.get("terminal_path", "")).strip().strip('"')
+        if pfad and not pfad.lower().endswith("terminal64.exe"):
+            pfad = os.path.join(pfad, "terminal64.exe")
+        if login <= 0: return False, f"Kontonummer {r} fehlt."
+        if not os.path.isfile(pfad): return False, f"Terminal {r} nicht gefunden: {pfad}"
+        c = dict(alt[r]); c.update(gemeinsam)
+        c.update({"expected_login": login, "terminal_path": pfad, "richtung": r, "scharf": bool(e.get("scharf"))})
+        try:
+            import einrichten
+            einrichten.archiviere_bei_kontowechsel(r, login)
+        except Exception:
+            pass
+        ziel = os.path.join(HIER, f"config-{r}.json")
+        with open(ziel + ".neu", "w", encoding="utf-8") as f:
+            json.dump(c, f, indent=2, ensure_ascii=False)
+        os.replace(ziel + ".neu", ziel)
+        geschrieben.append(r)
+    return True, "Gespeichert — die Bots starten in wenigen Sekunden mit den neuen Einstellungen neu."
+
+
 class H(BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass
 
+    def _antwort(self, code, daten):
+        body = json.dumps(daten).encode("utf-8")
+        self.send_response(code); self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Cache-Control", "no-store"); self.send_header("Content-Length", str(len(body))); self.end_headers()
+        self.wfile.write(body)
+
+    def do_POST(self):
+        # Schutz gegen fremde Webseiten im selben Browser: nur eigener Host, nur mit eigenem Kopf
+        # (den darf eine fremde Seite ohne Freigabe nicht setzen), nur JSON.
+        host = (self.headers.get("Host") or "").split(":")[0]
+        if host not in ("localhost", "127.0.0.1") or self.headers.get("X-Nasdaq-Grid") != "1" \
+                or not (self.headers.get("Content-Type") or "").startswith("application/json"):
+            return self._antwort(403, {"ok": False, "meldung": "abgelehnt"})
+        if self.path != "/api/einstellungen":
+            return self._antwort(404, {"ok": False})
+        try:
+            laenge = min(int(self.headers.get("Content-Length") or 0), 20000)
+            neu = json.loads(self.rfile.read(laenge).decode("utf-8"))
+            ok, meldung = einstellungen_speichern(neu)
+        except Exception as e:
+            ok, meldung = False, f"Fehler: {type(e).__name__}"
+        return self._antwort(200 if ok else 400, {"ok": ok, "meldung": meldung})
+
     def do_GET(self):
+        if self.path.startswith("/api/einstellungen"):
+            return self._antwort(200, einstellungen_lesen())
         if self.path.startswith("/api/status"):
             body = json.dumps(daten()).encode("utf-8"); typ = "application/json; charset=utf-8"
         elif self.path in ("/", "/index.html"):

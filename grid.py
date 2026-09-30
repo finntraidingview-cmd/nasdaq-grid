@@ -337,6 +337,8 @@ def main():
         except Exception as e:
             L(f"(Status nicht geschrieben: {type(e).__name__})")
 
+    cfg_stand = os.path.getmtime(cfg_pfad)
+    naechste_kontrolle = time.time() + 5.0
     letzter_status = 0.0
     letzte_meldung = None
     pause_bis = 0.0
@@ -346,6 +348,20 @@ def main():
     L(f"Version {version or '?'}")
     while True:
         time.sleep(float(cfg["poll_interval"]))
+        if time.time() >= naechste_kontrolle:
+            naechste_kontrolle = time.time() + 5.0
+            # Einstellungen geaendert (Uebersicht oder Editor): neu starten, damit die neuen Werte gelten.
+            try:
+                if os.path.getmtime(cfg_pfad) != cfg_stand:
+                    L("Einstellungen geaendert — Neustart mit den neuen Werten")
+                    mt5.shutdown(); sys.exit(0)
+            except OSError:
+                pass
+            # Im Terminal ein anderes Konto eingeloggt (z. B. Demo -> Live umgestellt): sofort aufhoeren.
+            k_jetzt = mt5.account_info()
+            if k_jetzt is not None and int(k_jetzt.login) != int(cfg["expected_login"]):
+                L(f"⛔ Im Terminal ist jetzt Konto {k_jetzt.login} eingeloggt, eingestellt ist {cfg['expected_login']} — keine Order mehr, Neustart")
+                mt5.shutdown(); sys.exit(1)
         if time.time() >= naechste_pruefung:
             naechste_pruefung = time.time() + UPDATE_TAKT_S
             # Update ueber update.py (laedt ueber die Commit-Kennung). Neu gestartet wird nur, wenn danach
