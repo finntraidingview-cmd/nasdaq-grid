@@ -96,7 +96,7 @@ pre{margin:12px 0 0;font:12px/1.55 var(--mono);white-space:pre-wrap;word-break:b
 .einst label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--leise);min-width:0}
 .einst input[type=text],.einst input[type=number],.einst input[type=time]{font:14px var(--mono);padding:7px 9px;border-radius:7px;border:1px solid var(--linie);background:var(--karte2);color:var(--fg);width:100%}
 .einst input:focus{outline:2px solid var(--long);outline-offset:0;border-color:transparent}
-.einst .reihe{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.einst .reihe{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .schalter{flex-direction:row!important;align-items:center;gap:10px!important;font-size:14px!important;color:var(--fg)!important;cursor:pointer}
 .schalter input{width:18px;height:18px;accent-color:var(--gut)}
 .hinweis{font-size:12px;color:var(--leise)}
@@ -129,10 +129,8 @@ pre{margin:12px 0 0;font:12px/1.55 var(--mono);white-space:pre-wrap;word-break:b
       <label>Start-Lot<input type="number" step="0.01" min="0" id="e-start_lot"></label>
       <label>Lot je Stufe<input type="number" step="0.01" min="0.01" id="e-schritt_lot"></label>
       <label>Abstand in %<input type="number" step="0.01" min="0.01" id="e-schritt_prozent"></label>
-      <label>Start (Serverzeit)<input type="time" id="e-start"></label>
-      <label>Ende (Serverzeit)<input type="time" id="e-ende"></label>
     </div>
-    <span class="hinweis">Serverzeit = deutsche Zeit + 1 Stunde. 01:01 = 00:01 bei dir, 23:00 = 22:00 bei dir.</span>
+    <span class="hinweis">Läuft ab dem Start, schließt um 22:00 alles und öffnet um 00:01 neu.</span>
   </fieldset>
   <div id="e-meldung" hidden></div>
   <div class="aktionen"><button type="submit" class="knopf haupt" id="e-speichern">Speichern</button><button type="button" class="knopf" id="e-abbrechen">Schließen</button></div>
@@ -164,7 +162,7 @@ function tot(b){return b.alter_s>30}
 function botKarte(b){
   var name=b.bot==="long"?"Long-Bot":"Short-Bot",abw=Math.abs((b.soll_lot||0)-(b.ist_lot||0))>0.001,max=Math.max(b.start_lot*2,0.01);
   var pillen=tot(b)?'<span class="pille schlecht">antwortet nicht · '+Math.round(b.alter_s)+' s</span>':
-    (b.demo?'<span class="pille flach">Demo</span>':'<span class="pille schlecht">Live</span>')+(b.scharf?'<span class="pille gut">scharf</span>':'<span class="pille warn">Trockenlauf</span>')+(b.aktiv?'<span class="pille gut">läuft</span>':'<span class="pille flach">wartet auf '+esc(b.start)+'</span>');
+    (b.demo?'<span class="pille flach">Demo</span>':'<span class="pille schlecht">Live</span>')+(b.scharf?'<span class="pille gut">scharf</span>':'<span class="pille warn">Trockenlauf</span>')+(b.aktiv?'<span class="pille gut">läuft</span>':'<span class="pille flach">Pause bis 00:01</span>');
   return '<div class="karte bot '+b.bot+'"><div class="kopf"><h2>'+name+'</h2>'+pillen+'</div>'+
    '<div class="titel">Heute</div><div class="botzahl '+kl(b.tagesergebnis)+'">'+geld(b.tagesergebnis,b.waehrung)+'</div>'+
    '<dl><dt>offen</dt><dd class="'+kl(b.offen)+'">'+geld(b.offen)+'</dd><dt>realisiert</dt><dd class="'+kl(b.realisiert)+'">'+geld(b.realisiert)+'</dd>'+
@@ -176,7 +174,7 @@ function botKarte(b){
    '<dt>Margin-Level</dt><dd'+(b.margin_level!=null&&b.margin_level<150?' class="schlecht"':'')+'>'+(b.margin_level==null?"–":zahl(b.margin_level,0)+" %")+'</dd></dl></div>'}
 
 function leiter(e){
-  if(!e.anker)return'<div class="leer">Noch kein Anker – das Raster startet um '+esc(e.start)+' Serverzeit.</div>';
+  if(!e.anker)return'<div class="leer">Noch kein Anker – das Raster startet mit dem Bot bzw. um 00:01.</div>';
   var s='<div class="leiterkopf"><span>Long hält</span><span>Stufe</span><span>Short hält</span></div><div class="leiter">',c=e.stufe;
   for(var j=c+6;j>=c-6;j--){
     var preis=e.anker*(1+j*e.schritt_prozent/100),lo=Math.max(0,e.start_lot-e.schritt_lot*j),sh=Math.max(0,e.start_lot+e.schritt_lot*j);
@@ -244,7 +242,7 @@ function zeige(d){
   var e=b[namen[0]],w=e.waehrung,sum=function(f){return namen.reduce(function(a,n){return a+(b[n][f]||0)},0)};
   var alleTot=namen.every(function(n){return tot(b[n])}),einerTot=namen.some(function(n){return tot(b[n])});
   $("punkt").className="punkt "+(alleTot?"aus":einerTot?"":"an");
-  setze("chips",'<span class="chip">Serverzeit '+esc(e.serverzeit.slice(11))+'</span><span class="chip">NAS100 '+zahl(e.kurs,2)+'</span><span class="chip">'+zahl(e.start_lot,2)+' Lot Start · '+zahl(e.schritt_lot,2)+' je '+zahl(e.schritt_prozent,2)+' %</span><span class="chip">'+esc(e.start)+'–'+esc(e.ende)+'</span><span class="chip">v '+esc(e.version)+'</span>');
+  setze("chips",'<span class="chip">NAS100 '+zahl(e.kurs,2)+'</span><span class="chip">'+zahl(e.start_lot,2)+' Lot Start · '+zahl(e.schritt_lot,2)+' je '+zahl(e.schritt_prozent,2)+' %</span><span class="chip">v '+esc(e.version)+'</span>');
   var paar=sum("tagesergebnis"),grid=sum("grid_ertrag"),best=sum("bestand_ergebnis"),t=tageDaten(b),vorher=t.reduce(function(a,x){return a+x.paar},0),gesamt=vorher+paar;
   var ab=Math.abs(grid)+Math.abs(best)||1,rundenHeute=Math.max((b.long||{}).runden||0,(b.short||{}).runden||0);
   setze("held",'<div class="titel">Paar heute</div><div class="gross '+kl(paar)+'">'+geld(paar,w)+'</div>'+
@@ -283,7 +281,7 @@ function kontoArt(r){var b=letzterStatus[r];if(!b)return"";if(tot(b))return"Bot 
 function einstOeffnen(){
   fetch("/api/einstellungen").then(function(r){return r.json()}).then(function(c){geladen=c;bestaetigt=false;$("e-meldung").hidden=true;$("e-speichern").textContent="Speichern";$("e-speichern").className="knopf haupt";
     ["long","short"].forEach(function(r){feld(r+"-konto").value=c[r].expected_login||"";feld(r+"-pfad").value=c[r].terminal_path||"";feld(r+"-scharf").checked=!!c[r].scharf;feld(r+"-art").textContent=kontoArt(r)});
-    var g=c.long;["start_lot","schritt_lot","schritt_prozent","start","ende"].forEach(function(k){feld(k).value=g[k]});
+    var g=c.long;["start_lot","schritt_lot","schritt_prozent"].forEach(function(k){feld(k).value=g[k]});
     $("einstkarte").hidden=false;$("einstknopf").setAttribute("aria-expanded","true");feld("long-konto").focus()})
    .catch(function(){alert("Einstellungen nicht erreichbar")})}
 function einstSchliessen(){$("einstkarte").hidden=true;$("einstknopf").setAttribute("aria-expanded","false")}
@@ -292,7 +290,7 @@ $("e-abbrechen").addEventListener("click",einstSchliessen);
 ["long","short"].forEach(function(r){feld(r+"-scharf").addEventListener("change",function(){bestaetigt=false;$("e-speichern").textContent="Speichern";$("e-speichern").className="knopf haupt";$("e-meldung").hidden=true})});
 $("einstkarte").addEventListener("submit",function(ev){
   ev.preventDefault();
-  var daten={gemeinsam:{}};["start_lot","schritt_lot","schritt_prozent","start","ende"].forEach(function(k){daten.gemeinsam[k]=feld(k).value});
+  var daten={gemeinsam:{}};["start_lot","schritt_lot","schritt_prozent"].forEach(function(k){daten.gemeinsam[k]=feld(k).value});
   var neuScharf=[];
   ["long","short"].forEach(function(r){daten[r]={expected_login:feld(r+"-konto").value.trim(),terminal_path:feld(r+"-pfad").value.trim(),scharf:feld(r+"-scharf").checked};
     var kontoNeu=String(daten[r].expected_login)!==String(geladen[r].expected_login);

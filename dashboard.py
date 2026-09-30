@@ -94,10 +94,12 @@ def einstellungen_speichern(neu):
     alt = einstellungen_lesen()
     g = neu.get("gemeinsam") or {}
     try:
+        # Zeiten stellt Finn nicht mehr ein (01.10.2026): fest 00:01 bis 22:00 deutscher Zeit — bleiben wie in der Config.
         gemeinsam = {"start_lot": round(float(g["start_lot"]), 2), "schritt_lot": round(float(g["schritt_lot"]), 2),
-                     "schritt_prozent": round(float(g["schritt_prozent"]), 3), "start": str(g["start"]), "ende": str(g["ende"])}
+                     "schritt_prozent": round(float(g["schritt_prozent"]), 3),
+                     "start": str(g.get("start") or alt["long"].get("start") or "01:01"), "ende": str(g.get("ende") or alt["long"].get("ende") or "23:00")}
     except (KeyError, ValueError, TypeError):
-        return False, "Lot, Abstand und Zeiten muessen ausgefuellt sein."
+        return False, "Start-Lot, Lot je Stufe und Abstand muessen ausgefuellt sein."
     if not (0 <= gemeinsam["start_lot"] <= 10): return False, "Start-Lot zwischen 0 und 10."
     if not (0.01 <= gemeinsam["schritt_lot"] <= 1): return False, "Lot je Stufe zwischen 0,01 und 1."
     if not (0.01 <= gemeinsam["schritt_prozent"] <= 5): return False, "Abstand zwischen 0,01 und 5 %."
