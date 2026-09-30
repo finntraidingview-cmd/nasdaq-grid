@@ -112,16 +112,14 @@ pre{margin:12px 0 0;font:12px/1.55 var(--mono);white-space:pre-wrap;word-break:b
 <div class="top"><div class="marke"><span class="punkt" id="punkt"></span>Nasdaq-Grid</div><span id="chips" style="display:contents"></span><button type="button" class="knopf" id="einstknopf" aria-expanded="false" aria-controls="einstkarte">Einstellungen</button><button type="button" class="knopf haupt" id="startknopf">Starten</button></div>
 <div id="startmeldung" hidden></div>
 <form class="karte einst" id="einstkarte" hidden autocomplete="off">
-  <div class="kopf" style="margin:0"><span class="titel">Einstellungen</span><span class="hinweis">Nach dem Speichern starten die Bots von selbst mit den neuen Werten neu.</span></div>
+  <div class="kopf" style="margin:0"><span class="titel">Einstellungen</span></div>
   <div class="spalten">
     <fieldset><legend class="long">Long-Bot</legend>
       <label>Kontonummer<input type="text" inputmode="numeric" id="e-long-konto"></label>
-      <label>MT5-Terminal (Ordner oder terminal64.exe)<input type="text" id="e-long-pfad"></label>
       <span class="hinweis" id="e-long-art"></span>
     </fieldset>
     <fieldset><legend class="short">Short-Bot</legend>
       <label>Kontonummer<input type="text" inputmode="numeric" id="e-short-konto"></label>
-      <label>MT5-Terminal (Ordner oder terminal64.exe)<input type="text" id="e-short-pfad"></label>
       <span class="hinweis" id="e-short-art"></span>
     </fieldset>
   </div>
@@ -281,7 +279,7 @@ function einstMeldung(art,text,html){var m=$("e-meldung");m.hidden=false;m.class
 function kontoArt(r){var b=letzterStatus[r];if(!b)return"";if(tot(b))return"Bot meldet sich gerade nicht.";return"Jetzt eingeloggt: Konto "+b.konto+" · "+(b.demo?"Demo":"LIVE")}
 function einstOeffnen(){
   fetch("/api/einstellungen").then(function(r){return r.json()}).then(function(c){geladen=c;$("e-meldung").hidden=true;
-    ["long","short"].forEach(function(r){feld(r+"-konto").value=c[r].expected_login||"";feld(r+"-pfad").value=c[r].terminal_path||"";feld(r+"-art").textContent=kontoArt(r)});
+    ["long","short"].forEach(function(r){feld(r+"-konto").value=c[r].expected_login||"";feld(r+"-art").textContent=kontoArt(r)});
     var g=c.long;["start_lot","schritt_lot","schritt_prozent"].forEach(function(k){feld(k).value=g[k]});
     $("einstkarte").hidden=false;$("einstknopf").setAttribute("aria-expanded","true");feld("long-konto").focus()})
    .catch(function(){alert("Einstellungen nicht erreichbar")})}
@@ -291,7 +289,7 @@ $("e-abbrechen").addEventListener("click",einstSchliessen);
 $("einstkarte").addEventListener("submit",function(ev){
   ev.preventDefault();
   var daten={gemeinsam:{}};["start_lot","schritt_lot","schritt_prozent"].forEach(function(k){daten.gemeinsam[k]=feld(k).value});
-  ["long","short"].forEach(function(r){daten[r]={expected_login:feld(r+"-konto").value.trim(),terminal_path:feld(r+"-pfad").value.trim()}});
+  ["long","short"].forEach(function(r){daten[r]={expected_login:feld(r+"-konto").value.trim()}});
   senden("/api/einstellungen",daten,function(a){einstMeldung(a.ok?"gut":"schlecht",a.meldung)})});
 function senden(pfad,daten,fertig){
   fetch(pfad,{method:"POST",headers:{"Content-Type":"application/json","X-Nasdaq-Grid":"1"},body:JSON.stringify(daten||{})})

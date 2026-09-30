@@ -68,6 +68,7 @@ def daten():
 
 
 EINST_FELDER = ("start_lot", "schritt_lot", "schritt_prozent", "start", "ende")
+STANDARD_TERMINAL = {"long": r"C:\MT5-Grid-Long\terminal64.exe", "short": r"C:\MT5-Grid-Short\terminal64.exe"}
 
 
 def einstellungen_lesen():
@@ -112,9 +113,8 @@ def einstellungen_speichern(neu):
             login = int(str(e.get("expected_login", "")).strip())
         except ValueError:
             return False, f"Kontonummer {r} nur Ziffern."
-        pfad = str(e.get("terminal_path", "")).strip().strip('"')
-        if pfad and not pfad.lower().endswith("terminal64.exe"):
-            pfad = os.path.join(pfad, "terminal64.exe")
+        # Terminal fest: C:\MT5-Grid-Long bzw. C:\MT5-Grid-Short (Finn 01.10.2026, kein Eingabefeld mehr).
+        pfad = STANDARD_TERMINAL[r]
         if login <= 0: return False, f"Kontonummer {r} fehlt."
         if not os.path.isfile(pfad): return False, f"Terminal {r} nicht gefunden: {pfad}"
         c = dict(alt[r]); c.update(gemeinsam)
