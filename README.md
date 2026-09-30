@@ -16,8 +16,8 @@ je Konto ein Prozess mit denselben Einstellungen.
    `irm https://raw.githubusercontent.com/finntraidingview-cmd/nasdaq-grid/main/installieren.ps1 | iex`
 2. Zwei MT5-Terminals in zwei Ordnern, in jedem ist eines der Konten eingeloggt,
    „Algo-Trading" ist an.
-3. `config-long.vorlage.json` nach `config-long.json` kopieren, `terminal_path` und
-   `expected_login` eintragen. Dasselbe mit `config-short`.
+3. `einrichten.bat` starten: fragt je Bot nach Terminal-Ordner und Kontonummer, schreibt
+   `config-long.json` und `config-short.json` und prüft die Verbindung (ohne zu handeln).
 4. `start-long.bat` und `start-short.bat` starten. Solange `"scharf": false` steht,
    schreibt der Bot nur ins Log, was er tun würde.
 5. Wenn der Trockenlauf stimmt: in beiden Configs `"scharf": true`, Fenster schließen,
@@ -34,7 +34,8 @@ oder sie von Hand geschlossen werden.
 |---|---|
 | `grid.py` | der Bot (ein Prozess je Konto) |
 | `selftest.py` | prüft die Logik ohne MT5: `python selftest.py` |
-| `config-*.vorlage.json` | Einstellungen zum Kopieren |
+| `einrichten.bat`, `einrichten.py` | Einrichtungs-Hilfe und Verbindungs-Prüfung |
+| `config-*.vorlage.json` | Ausgangswerte der Einstellungen |
 | `start-long.bat`, `start-short.bat` | Start mit Selbst-Update und automatischem Neustart |
 | `installieren.ps1` | Ersteinrichtung auf einem PC |
 | `VERSION` | jede Änderung am Bot erhöht sie — das löst das Update auf den PCs aus |
