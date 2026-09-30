@@ -67,6 +67,7 @@ STANDARD = {
     "deviation_points": 50,
     "poll_interval": 0.5,
     "scharf": False,              # erst true = es werden wirklich Orders gesendet
+    "laeuft": True,               # false = gestoppt (Knopf in der Uebersicht): alles schliessen, nichts Neues
 }
 
 
@@ -220,7 +221,8 @@ def main():
     _tv, _ts = float(getattr(si, "trade_tick_value", 0.0) or 0.0), float(getattr(si, "trade_tick_size", 0.0) or 0.0)
     punktwert = _tv / _ts if _tv > 0 and _ts > 0 else float(si.trade_contract_size or 1.0)
     L(f"verbunden mit Konto {konto.login}, {sym}, Start {cfg['start_lot']} Lot, Schritt {cfg['schritt_lot']} Lot je {cfg['schritt_prozent']} %, "
-      f"{'SCHARF' if cfg['scharf'] else 'TROCKENLAUF (scharf=false, es wird nichts gesendet)'}")
+      f"{'SCHARF' if cfg['scharf'] else 'TROCKENLAUF (scharf=false, es wird nichts gesendet)'}"
+      f"{'' if cfg.get('laeuft', True) else ' — GESTOPPT (schliesst alles, eroeffnet nichts)'}")
 
     try:
         with open(zustand_pfad, "r", encoding="utf-8") as f:
@@ -304,7 +306,7 @@ def main():
             schreibe_json(status_pfad, {
                 "bot": cfg["richtung"], "konto": int(k.login) if k else None, "waehrung": getattr(k, "currency", ""),
                 "demo": bool(k) and int(getattr(k, "trade_mode", -1)) == 0,
-                "scharf": bool(cfg["scharf"]), "version": version, "geschrieben": time.time(),
+                "scharf": bool(cfg["scharf"]), "laeuft": bool(cfg.get("laeuft", True)), "version": version, "geschrieben": time.time(),
                 "serverzeit": jetzt.strftime("%Y-%m-%d %H:%M:%S"), "kurs": round(mitte, 2),
                 "tag": tag, "aktiv": bool(aktiv), "anker": z.get("anker"), "stufe": z.get("cur", 0),
                 "soll_lot": soll, "ist_lot": round(ist, 2), "positionen": len(ps),
@@ -394,6 +396,8 @@ def main():
         mitte = (tick.bid + tick.ask) / 2.0
         vorher = json.dumps(z, sort_keys=True)
         z, aktiv, ereignis = naechster_zustand(z, heute, minute, mitte, cfg)
+        if not cfg.get("laeuft", True):
+            aktiv = False                      # gestoppt: Soll 0, offene Positionen werden geschlossen
         if ereignis:
             L(ereignis)
         if json.dumps(z, sort_keys=True) != vorher:

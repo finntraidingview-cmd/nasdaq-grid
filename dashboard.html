@@ -14,6 +14,7 @@
   --gutbg:#12301F;--schlechtbg:#3A1C1A;--warnbg:#352B13;--flachbg:#1D262B;--longbg:#10303A;--shortbg:#38270F;
   --schatten:none;color-scheme:dark}}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 var(--text);-webkit-font-smoothing:antialiased}
 .wrap{max-width:1240px;margin:0 auto;padding:18px 18px 56px;display:flex;flex-direction:column;gap:14px}
 .leise{color:var(--leise)} .gut{color:var(--gut)} .schlecht{color:var(--schlecht)}
@@ -103,24 +104,24 @@ pre{margin:12px 0 0;font:12px/1.55 var(--mono);white-space:pre-wrap;word-break:b
 .meldung{padding:10px 12px;border-radius:8px;font-size:13px}
 .meldung.gut{background:var(--gutbg)} .meldung.schlecht{background:var(--schlechtbg)} .meldung.warn{background:var(--warnbg);color:var(--fg)}
 .aktionen{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+#startknopf{min-width:96px}
 @media (max-width:760px){.einst .spalten{grid-template-columns:1fr}.einst .reihe{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:1000px){.held,.drei,.zwei{grid-template-columns:1fr}.kacheln{grid-template-columns:repeat(2,1fr)}}
 @media (max-width:520px){.kacheln{grid-template-columns:1fr}.held .gross{font-size:34px}.sprosse .m,.leiterkopf span:nth-child(2){min-width:110px}}
 </style></head><body><div class="wrap">
-<div class="top"><div class="marke"><span class="punkt" id="punkt"></span>Nasdaq-Grid</div><span id="chips" style="display:contents"></span><button type="button" class="knopf" id="einstknopf" aria-expanded="false" aria-controls="einstkarte">Einstellungen</button></div>
+<div class="top"><div class="marke"><span class="punkt" id="punkt"></span>Nasdaq-Grid</div><span id="chips" style="display:contents"></span><button type="button" class="knopf" id="einstknopf" aria-expanded="false" aria-controls="einstkarte">Einstellungen</button><button type="button" class="knopf haupt" id="startknopf">Starten</button></div>
+<div id="startmeldung" hidden></div>
 <form class="karte einst" id="einstkarte" hidden autocomplete="off">
   <div class="kopf" style="margin:0"><span class="titel">Einstellungen</span><span class="hinweis">Nach dem Speichern starten die Bots von selbst mit den neuen Werten neu.</span></div>
   <div class="spalten">
     <fieldset><legend class="long">Long-Bot</legend>
       <label>Kontonummer<input type="text" inputmode="numeric" id="e-long-konto"></label>
       <label>MT5-Terminal (Ordner oder terminal64.exe)<input type="text" id="e-long-pfad"></label>
-      <label class="schalter"><input type="checkbox" id="e-long-scharf">scharf – sendet echte Orders</label>
       <span class="hinweis" id="e-long-art"></span>
     </fieldset>
     <fieldset><legend class="short">Short-Bot</legend>
       <label>Kontonummer<input type="text" inputmode="numeric" id="e-short-konto"></label>
       <label>MT5-Terminal (Ordner oder terminal64.exe)<input type="text" id="e-short-pfad"></label>
-      <label class="schalter"><input type="checkbox" id="e-short-scharf">scharf – sendet echte Orders</label>
       <span class="hinweis" id="e-short-art"></span>
     </fieldset>
   </div>
@@ -133,7 +134,7 @@ pre{margin:12px 0 0;font:12px/1.55 var(--mono);white-space:pre-wrap;word-break:b
     <span class="hinweis">Läuft ab dem Start, schließt um 22:00 alles und öffnet um 00:01 neu.</span>
   </fieldset>
   <div id="e-meldung" hidden></div>
-  <div class="aktionen"><button type="submit" class="knopf haupt" id="e-speichern">Speichern</button><button type="button" class="knopf" id="e-abbrechen">Schließen</button></div>
+  <div class="aktionen"><button type="submit" class="knopf haupt" id="e-speichern">Speichern</button><button type="button" class="knopf" id="e-reset">Statistik zurücksetzen</button><button type="button" class="knopf" id="e-abbrechen">Schließen</button></div>
 </form>
 <div id="leerstart" class="karte start" hidden><div style="font-size:17px;font-weight:650;margin-bottom:6px">Noch kein Bot gestartet</div><div class="leise">start-long.bat und start-short.bat ausführen – die Übersicht füllt sich dann von selbst.</div></div>
 <div id="inhalt" hidden>
@@ -162,7 +163,7 @@ function tot(b){return b.alter_s>30}
 function botKarte(b){
   var name=b.bot==="long"?"Long-Bot":"Short-Bot",abw=Math.abs((b.soll_lot||0)-(b.ist_lot||0))>0.001,max=Math.max(b.start_lot*2,0.01);
   var pillen=tot(b)?'<span class="pille schlecht">antwortet nicht · '+Math.round(b.alter_s)+' s</span>':
-    (b.demo?'<span class="pille flach">Demo</span>':'<span class="pille schlecht">Live</span>')+(b.scharf?'<span class="pille gut">scharf</span>':'<span class="pille warn">Trockenlauf</span>')+(b.aktiv?'<span class="pille gut">läuft</span>':'<span class="pille flach">Pause bis 00:01</span>');
+    (b.demo?'<span class="pille flach">Demo</span>':'<span class="pille schlecht">Live</span>')+(b.laeuft===false?'<span class="pille schlecht">gestoppt</span>':b.scharf?'<span class="pille gut">scharf</span>':'<span class="pille warn">nicht gestartet</span>')+(b.laeuft===false?'':b.aktiv?'<span class="pille gut">läuft</span>':'<span class="pille flach">Pause bis 00:01</span>');
   return '<div class="karte bot '+b.bot+'"><div class="kopf"><h2>'+name+'</h2>'+pillen+'</div>'+
    '<div class="titel">Heute</div><div class="botzahl '+kl(b.tagesergebnis)+'">'+geld(b.tagesergebnis,b.waehrung)+'</div>'+
    '<dl><dt>offen</dt><dd class="'+kl(b.offen)+'">'+geld(b.offen)+'</dd><dt>realisiert</dt><dd class="'+kl(b.realisiert)+'">'+geld(b.realisiert)+'</dd>'+
@@ -235,7 +236,7 @@ function dealTabelle(b){
 function tabs(id,namen,aktiv){setze(id,namen.map(function(n){return'<button type="button" aria-pressed="'+(n===aktiv)+'" data-bot="'+n+'">'+(n==="long"?"Long":"Short")+'</button>'}).join(""))}
 
 function zeige(d){
-  letzterStatus=d.bots||{};
+  letzterStatus=d.bots||{};startKnopfZeigen();
   var b=d.bots,namen=["long","short"].filter(function(n){return b[n]});
   $("leerstart").hidden=namen.length>0;$("inhalt").hidden=!namen.length;
   if(!namen.length){$("punkt").className="punkt";setze("chips","");return}
@@ -277,33 +278,43 @@ function zeige(d){
 var geladen=null,letzterStatus={},bestaetigt=false;
 function feld(id){return $("e-"+id)}
 function einstMeldung(art,text,html){var m=$("e-meldung");m.hidden=false;m.className="meldung "+art;if(html)m.innerHTML=text;else m.textContent=text}
-function kontoArt(r){var b=letzterStatus[r];if(!b)return"";if(tot(b))return"Bot meldet sich gerade nicht.";return"Jetzt eingeloggt: Konto "+b.konto+" · "+(b.demo?"Demo":"LIVE")+" · "+(b.scharf?"scharf":"Trockenlauf")}
+function kontoArt(r){var b=letzterStatus[r];if(!b)return"";if(tot(b))return"Bot meldet sich gerade nicht.";return"Jetzt eingeloggt: Konto "+b.konto+" · "+(b.demo?"Demo":"LIVE")}
 function einstOeffnen(){
-  fetch("/api/einstellungen").then(function(r){return r.json()}).then(function(c){geladen=c;bestaetigt=false;$("e-meldung").hidden=true;$("e-speichern").textContent="Speichern";$("e-speichern").className="knopf haupt";
-    ["long","short"].forEach(function(r){feld(r+"-konto").value=c[r].expected_login||"";feld(r+"-pfad").value=c[r].terminal_path||"";feld(r+"-scharf").checked=!!c[r].scharf;feld(r+"-art").textContent=kontoArt(r)});
+  fetch("/api/einstellungen").then(function(r){return r.json()}).then(function(c){geladen=c;$("e-meldung").hidden=true;
+    ["long","short"].forEach(function(r){feld(r+"-konto").value=c[r].expected_login||"";feld(r+"-pfad").value=c[r].terminal_path||"";feld(r+"-art").textContent=kontoArt(r)});
     var g=c.long;["start_lot","schritt_lot","schritt_prozent"].forEach(function(k){feld(k).value=g[k]});
     $("einstkarte").hidden=false;$("einstknopf").setAttribute("aria-expanded","true");feld("long-konto").focus()})
    .catch(function(){alert("Einstellungen nicht erreichbar")})}
 function einstSchliessen(){$("einstkarte").hidden=true;$("einstknopf").setAttribute("aria-expanded","false")}
 $("einstknopf").addEventListener("click",function(){if($("einstkarte").hidden)einstOeffnen();else einstSchliessen()});
 $("e-abbrechen").addEventListener("click",einstSchliessen);
-["long","short"].forEach(function(r){feld(r+"-scharf").addEventListener("change",function(){bestaetigt=false;$("e-speichern").textContent="Speichern";$("e-speichern").className="knopf haupt";$("e-meldung").hidden=true})});
 $("einstkarte").addEventListener("submit",function(ev){
   ev.preventDefault();
   var daten={gemeinsam:{}};["start_lot","schritt_lot","schritt_prozent"].forEach(function(k){daten.gemeinsam[k]=feld(k).value});
-  var neuScharf=[];
-  ["long","short"].forEach(function(r){daten[r]={expected_login:feld(r+"-konto").value.trim(),terminal_path:feld(r+"-pfad").value.trim(),scharf:feld(r+"-scharf").checked};
-    var kontoNeu=String(daten[r].expected_login)!==String(geladen[r].expected_login);
-    if(daten[r].scharf&&(!geladen[r].scharf||kontoNeu))neuScharf.push(r)});
-  // Scharf schalten braucht einen zweiten Klick: vorher steht da, auf welchem Konto echte Orders starten.
-  if(neuScharf.length&&!bestaetigt){
-    var txt="<b>Scharf schalten:</b> "+neuScharf.map(function(r){var b=letzterStatus[r];return(r==="long"?"Long":"Short")+" auf Konto "+esc(daten[r].expected_login)+(b&&String(b.konto)===String(daten[r].expected_login)?(b.demo?" (Demo)":" <b>(LIVE, echtes Geld)</b>"):"")}).join(" · ")+". Die Bots eröffnen dann sofort ihre Start-Position, wenn gerade Handelszeit ist. Zum Bestätigen noch einmal klicken.";
-    einstMeldung("warn",txt,true);bestaetigt=true;$("e-speichern").textContent="Ja, scharf schalten und speichern";$("e-speichern").className="knopf gefahr";return}
-  $("e-speichern").disabled=true;
-  fetch("/api/einstellungen",{method:"POST",headers:{"Content-Type":"application/json","X-Nasdaq-Grid":"1"},body:JSON.stringify(daten)})
-   .then(function(r){return r.json()}).then(function(a){einstMeldung(a.ok?"gut":"schlecht",a.meldung);if(a.ok){bestaetigt=false;$("e-speichern").textContent="Speichern";$("e-speichern").className="knopf haupt";fetch("/api/einstellungen").then(function(r){return r.json()}).then(function(c){geladen=c})}})
-   .catch(function(){einstMeldung("schlecht","Speichern fehlgeschlagen – läuft die Übersicht noch?")})
-   .then(function(){$("e-speichern").disabled=false})});
+  ["long","short"].forEach(function(r){daten[r]={expected_login:feld(r+"-konto").value.trim(),terminal_path:feld(r+"-pfad").value.trim()}});
+  senden("/api/einstellungen",daten,function(a){einstMeldung(a.ok?"gut":"schlecht",a.meldung)})});
+function senden(pfad,daten,fertig){
+  fetch(pfad,{method:"POST",headers:{"Content-Type":"application/json","X-Nasdaq-Grid":"1"},body:JSON.stringify(daten||{})})
+   .then(function(r){return r.json()}).then(fertig).catch(function(){fertig({ok:false,meldung:"Nicht erreichbar – läuft die Übersicht noch?"})})}
+var resetBestaetigt=false;
+$("e-reset").addEventListener("click",function(){
+  if(!resetBestaetigt){resetBestaetigt=true;$("e-reset").textContent="Ja, zurücksetzen";$("e-reset").className="knopf gefahr";einstMeldung("warn","Tagesbuch, Kurve und Log werden ins Archiv gelegt; offene Positionen und der laufende Tag bleiben. Zum Bestätigen noch einmal klicken.");return}
+  resetBestaetigt=false;$("e-reset").textContent="Statistik zurücksetzen";$("e-reset").className="knopf";
+  senden("/api/reset",{},function(a){einstMeldung(a.ok?"gut":"schlecht",a.meldung)})});
+// Start/Stopp oben: Starten braucht einen zweiten Klick, vorher steht da, auf welchen Konten gehandelt wird.
+var startBestaetigt=false;
+function startMeldung(art,html){var m=$("startmeldung");m.hidden=!html;m.className="meldung "+art;m.innerHTML=html||""}
+function laeuftGerade(){var b=letzterStatus;return["long","short"].some(function(n){return b[n]&&b[n].scharf&&b[n].laeuft!==false})}
+$("startknopf").addEventListener("click",function(){
+  if(laeuftGerade()){
+    if(!startBestaetigt){startBestaetigt=true;$("startknopf").textContent="Ja, stoppen und alles schließen";$("startknopf").className="knopf gefahr";startMeldung("warn","Stoppen schließt alle Positionen beider Bots. Zum Bestätigen noch einmal klicken.");return}
+    startBestaetigt=false;senden("/api/stop",{},function(a){startMeldung(a.ok?"gut":"schlecht",esc(a.meldung))});return}
+  if(!startBestaetigt){
+    var txt=["long","short"].map(function(n){var b=letzterStatus[n];return(n==="long"?"Long":"Short")+" auf Konto "+(b?esc(b.konto)+(b.demo?" (Demo)":" <b>(LIVE, echtes Geld)</b>"):"?")}).join(" · ");
+    startBestaetigt=true;$("startknopf").textContent="Ja, jetzt starten";$("startknopf").className="knopf gefahr";
+    startMeldung("warn","<b>Starten:</b> "+txt+". Beide eröffnen sofort ihre Start-Position. Zum Bestätigen noch einmal klicken.");return}
+  startBestaetigt=false;senden("/api/start",{},function(a){startMeldung(a.ok?"gut":"schlecht",esc(a.meldung))})});
+function startKnopfZeigen(){if(startBestaetigt)return;var an=laeuftGerade();$("startknopf").textContent=an?"Stoppen":"Starten";$("startknopf").className="knopf "+(an?"":"haupt")}
 
 var seite=null;
 function neuLaden(d){if(d.version){if(seite===null)seite=d.version;else if(seite!==d.version){location.reload();return d}}return d}

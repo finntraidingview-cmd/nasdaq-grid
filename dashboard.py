@@ -118,7 +118,8 @@ def einstellungen_speichern(neu):
         if login <= 0: return False, f"Kontonummer {r} fehlt."
         if not os.path.isfile(pfad): return False, f"Terminal {r} nicht gefunden: {pfad}"
         c = dict(alt[r]); c.update(gemeinsam)
-        c.update({"expected_login": login, "terminal_path": pfad, "richtung": r, "scharf": bool(e.get("scharf"))})
+        # scharf/laeuft stellt nur der Start-/Stopp-Knopf — Speichern laesst sie, wie sie sind.
+        c.update({"expected_login": login, "terminal_path": pfad, "richtung": r})
         try:
             import einrichten
             einrichten.archiviere_bei_kontowechsel(r, login)
@@ -129,7 +130,42 @@ def einstellungen_speichern(neu):
             json.dump(c, f, indent=2, ensure_ascii=False)
         os.replace(ziel + ".neu", ziel)
         geschrieben.append(r)
-    return True, "Gespeichert — die Bots starten in wenigen Sekunden mit den neuen Einstellungen neu."
+    return True, "Gespeichert — die Bots uebernehmen die Werte in wenigen Sekunden."
+
+
+def schalte(scharf=None, laeuft=None):
+    """Start/Stopp fuer beide Bots: setzt scharf/laeuft in beiden Configs (die Bots starten dann neu)."""
+    for r in ("long", "short"):
+        pfad = os.path.join(HIER, f"config-{r}.json")
+        c = lies(pfad, None)
+        if not c or not int(c.get("expected_login") or 0):
+            return False, "Erst Kontonummern speichern."
+        if scharf is not None:
+            c["scharf"] = scharf
+        if laeuft is not None:
+            c["laeuft"] = laeuft
+        with open(pfad + ".neu", "w", encoding="utf-8") as f:
+            json.dump(c, f, indent=2, ensure_ascii=False)
+        os.replace(pfad + ".neu", pfad)
+    return True, ("Gestartet — beide Bots eroeffnen in wenigen Sekunden." if laeuft else "Gestoppt — alle Positionen werden geschlossen.")
+
+
+def statistik_zuruecksetzen():
+    """Tagesbuch und Log nach archiv/zurueckgesetzt-<Zeit>/ legen und die Bots neu starten lassen
+    (dadurch beginnt auch die Tageskurve neu). Anker und Stufe des laufenden Tages bleiben."""
+    ziel = os.path.join(HIER, "archiv", time.strftime("zurueckgesetzt-%Y%m%d-%H%M%S"))
+    os.makedirs(ziel, exist_ok=True)
+    for muster in ("verlauf-*.json", "log-*.txt"):
+        for p in glob.glob(os.path.join(HIER, muster)):
+            try:
+                os.replace(p, os.path.join(ziel, os.path.basename(p)))
+            except OSError:
+                pass
+    for r in ("long", "short"):
+        p = os.path.join(HIER, f"config-{r}.json")
+        if os.path.isfile(p):
+            os.utime(p, None)                  # geaenderte Config = Bot startet neu
+    return True, "Statistik zurueckgesetzt — alte Werte liegen in archiv."
 
 
 class H(BaseHTTPRequestHandler):
@@ -149,12 +185,19 @@ class H(BaseHTTPRequestHandler):
         if host not in ("localhost", "127.0.0.1") or self.headers.get("X-Nasdaq-Grid") != "1" \
                 or not (self.headers.get("Content-Type") or "").startswith("application/json"):
             return self._antwort(403, {"ok": False, "meldung": "abgelehnt"})
-        if self.path != "/api/einstellungen":
-            return self._antwort(404, {"ok": False})
         try:
             laenge = min(int(self.headers.get("Content-Length") or 0), 20000)
-            neu = json.loads(self.rfile.read(laenge).decode("utf-8"))
-            ok, meldung = einstellungen_speichern(neu)
+            neu = json.loads(self.rfile.read(laenge).decode("utf-8") or "{}")
+            if self.path == "/api/einstellungen":
+                ok, meldung = einstellungen_speichern(neu)
+            elif self.path == "/api/start":
+                ok, meldung = schalte(scharf=True, laeuft=True)
+            elif self.path == "/api/stop":
+                ok, meldung = schalte(laeuft=False)
+            elif self.path == "/api/reset":
+                ok, meldung = statistik_zuruecksetzen()
+            else:
+                return self._antwort(404, {"ok": False})
         except Exception as e:
             ok, meldung = False, f"Fehler: {type(e).__name__}"
         return self._antwort(200 if ok else 400, {"ok": ok, "meldung": meldung})
