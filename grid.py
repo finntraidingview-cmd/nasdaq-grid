@@ -330,7 +330,10 @@ def main():
         time.sleep(float(cfg["poll_interval"]))
         if time.time() >= naechste_pruefung:
             naechste_pruefung = time.time() + UPDATE_TAKT_S
-            neu = repo_version()
+            # Lokale VERSION neu lesen: die Uebersicht kann das Update schon geholt haben.
+            neu = repo_version() or lokale_version()
+            if lokale_version() and lokale_version() != version:
+                neu = lokale_version()
             if neu and version and neu != version:
                 L(f"neue Version {neu} im Repo (hier {version}) — Neustart zum Aktualisieren")
                 mt5.shutdown(); sys.exit(0)

@@ -2,7 +2,7 @@
 """dashboard.py — Uebersicht fuer den Nasdaq-Grid im Browser, laeuft nur auf diesem PC.
 Liest die Dateien, die grid.py schreibt (status-*.json, verlauf-*.json, log-*.txt) und zeigt sie
 unter http://localhost:8790 an. Sendet keine Order und aendert nichts.  Aufruf: start-dashboard.bat"""
-import json, os, time, glob
+import json, os, time, glob, threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 HIER = os.path.dirname(os.path.abspath(__file__))
@@ -26,6 +26,30 @@ def log_ende(pfad, zeilen=60):
         return []
 
 
+def seiten_version():
+    try:
+        with open(os.path.join(HIER, "VERSION"), "r", encoding="utf-8") as f:
+            return f.read().strip()
+    except OSError:
+        return ""
+
+
+def selbst_update():
+    """Alle 2 Minuten nach einer neuen Version sehen. Die Seite (dashboard.html) wird von der Platte
+    gelesen und ist damit sofort neu; hat sich dashboard.py selbst geaendert, beendet sich der
+    Server und die .bat-Schleife startet den neuen. Der Browser laedt sich ueber 'version' neu."""
+    while True:
+        time.sleep(120)
+        try:
+            import importlib, update
+            importlib.reload(update)
+            if "dashboard.py" in update.lauf(leise=True):
+                print("neue Version von dashboard.py — Neustart", flush=True)
+                os._exit(0)
+        except Exception:
+            pass
+
+
 def daten():
     bots = {}
     for pfad in sorted(glob.glob(os.path.join(HIER, "status-*.json"))):
@@ -37,7 +61,7 @@ def daten():
         st["verlauf"] = lies(os.path.join(HIER, f"verlauf-{stamm}.json"), [])
         st["log"] = log_ende(os.path.join(HIER, f"log-{stamm}.txt"))
         bots[st.get("bot", stamm)] = st
-    return {"jetzt": time.time(), "bots": bots}
+    return {"jetzt": time.time(), "version": seiten_version(), "bots": bots}
 
 
 class H(BaseHTTPRequestHandler):
@@ -61,5 +85,6 @@ class H(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     print(f"Nasdaq-Grid Uebersicht: http://localhost:{PORT}  (Fenster zu = Uebersicht aus, die Bots laufen weiter)")
+    threading.Thread(target=selbst_update, daemon=True).start()
     # Nur auf diesem PC erreichbar (127.0.0.1) — im Status stehen Kontonummern und Guthaben.
     ThreadingHTTPServer(("127.0.0.1", PORT), H).serve_forever()

@@ -23,7 +23,7 @@ je Konto ein Prozess mit denselben Einstellungen.
 5. Wenn der Trockenlauf stimmt: in beiden Configs `"scharf": true`, Fenster schließen,
    neu starten.
 
-Updates kommen von selbst: Der Bot prüft alle 5 Minuten die `VERSION` im Repo und startet bei einer neuen neu.
+Updates kommen von selbst: Bots und Übersicht prüfen alle paar Minuten die `VERSION` im Repo, laden den neuen Stand (`update.py`) und starten neu; die Seite im Browser lädt sich danach selbst neu. Nur die `.bat`-Dateien werden nie automatisch ersetzt — dafür die Installationszeile erneut ausführen.
 
 Fenster zu = Bot aus. Offene Positionen bleiben dann stehen, bis der Bot wieder läuft
 oder sie von Hand geschlossen werden.
@@ -38,6 +38,7 @@ oder sie von Hand geschlossen werden.
 | `config-*.vorlage.json` | Ausgangswerte der Einstellungen |
 | `start-long.bat`, `start-short.bat` | Start mit Selbst-Update und automatischem Neustart |
 | `installieren.ps1` | Ersteinrichtung auf einem PC |
+| `update.py` | holt neue Versionen aus dem Repo (von Start-Dateien und Übersicht aufgerufen) |
 | `start-dashboard.bat`, `dashboard.py`, `dashboard.html` | Übersicht im Browser unter http://localhost:8790 (nur auf diesem PC, sendet nichts) |
 | `VERSION` | jede Änderung am Bot erhöht sie — das löst das Update auf den PCs aus |
 | `log-*.txt`, `zustand-*.json`, `status-*.json`, `verlauf-*.json` | entstehen beim Laufen |

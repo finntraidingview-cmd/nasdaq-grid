@@ -225,6 +225,8 @@ function zeige(d){
   var pre=$("log"),unten=pre.scrollTop+pre.clientHeight>=pre.scrollHeight-8,txt=(b[wahl.log].log||[]).join("\n");
   if(alt.log!==txt){alt.log=txt;pre.textContent=txt;if(unten)pre.scrollTop=pre.scrollHeight}}
 ["postabs","logtabs"].forEach(function(id){$(id).addEventListener("click",function(ev){var n=ev.target.getAttribute("data-bot");if(n){ev.preventDefault();wahl[id==="postabs"?"pos":"log"]=n;if(id==="logtabs")$("logbox").open=true;lade()}})});
-function lade(){fetch("/api/status").then(function(r){return r.json()}).then(zeige).catch(function(){$("punkt").className="punkt aus"})}
+var seite=null;
+function neuLaden(d){if(d.version){if(seite===null)seite=d.version;else if(seite!==d.version){location.reload();return d}}return d}
+function lade(){fetch("/api/status").then(function(r){return r.json()}).then(neuLaden).then(zeige).catch(function(){$("punkt").className="punkt aus"})}
 lade();setInterval(lade,2000);
 </script></body></html>
