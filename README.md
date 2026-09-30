@@ -36,6 +36,7 @@ oder sie von Hand geschlossen werden.
 | `selftest.py` | prüft die Logik ohne MT5: `python selftest.py` |
 | `einrichten.bat`, `einrichten.py` | Einrichtungs-Hilfe und Verbindungs-Prüfung |
 | `config-*.vorlage.json` | Ausgangswerte der Einstellungen |
+| `START-ALLES.bat` | startet Long-Bot, Short-Bot und Übersicht auf einmal |
 | `start-long.bat`, `start-short.bat` | Start mit Selbst-Update und automatischem Neustart |
 | `installieren.ps1` | Ersteinrichtung auf einem PC |
 | `update.py` | holt neue Versionen aus dem Repo (von Start-Dateien und Übersicht aufgerufen) |

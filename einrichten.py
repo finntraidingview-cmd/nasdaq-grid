@@ -50,11 +50,35 @@ def frage_bot(name):
     return exe, int(nr)
 
 
+def archiviere_bei_kontowechsel(richtung, login):
+    """Neues Konto (z. B. Demo -> Live): Tagesbuch, Zustand, Status und Log des alten Kontos nach
+    archiv/<alte Nummer>/ verschieben, damit die Uebersicht nur Zahlen des neuen Kontos zeigt."""
+    try:
+        with open(os.path.join(HIER, f"config-{richtung}.json"), "r", encoding="utf-8") as f:
+            alt = int(json.load(f).get("expected_login") or 0)
+    except (OSError, ValueError):
+        return
+    if not alt or alt == int(login):
+        return
+    ziel = os.path.join(HIER, "archiv", str(alt))
+    os.makedirs(ziel, exist_ok=True)
+    for art in ("zustand", "verlauf", "status", "log"):
+        endung = "txt" if art == "log" else "json"
+        quelle = os.path.join(HIER, f"{art}-config-{richtung}.{endung}")
+        if os.path.isfile(quelle):
+            try:
+                os.replace(quelle, os.path.join(ziel, os.path.basename(quelle)))
+            except OSError as e:
+                print(f"  (konnte {os.path.basename(quelle)} nicht verschieben: {e} — laeuft der Bot noch? Erst Bot-Fenster schliessen.)")
+    print(f"  altes Konto {alt}: Verlauf und Log nach archiv\\{alt} verschoben")
+
+
 def schreibe(richtung, exe, login):
     with open(os.path.join(HIER, f"config-{richtung}.vorlage.json"), "r", encoding="utf-8") as f:
         cfg = json.load(f)
     cfg.pop("_hinweis", None)
     ziel = os.path.join(HIER, f"config-{richtung}.json")
+    archiviere_bei_kontowechsel(richtung, login)
     if os.path.isfile(ziel):
         # Lot- und Zeit-Werte einer vorhandenen Config behalten, nur Terminal und Konto neu setzen.
         try:
@@ -143,7 +167,7 @@ def main():
                     with open(p, "w", encoding="utf-8") as f:
                         json.dump(c, f, indent=2, ensure_ascii=False)
                 print("  scharf geschaltet (nur Demo).")
-    print("\nNaechster Schritt: start-long.bat und start-short.bat starten (Trockenlauf, es wird noch nichts gesendet).")
+    print("\nNaechster Schritt: START-ALLES.bat starten (Bots stehen nach dem Einrichten im Trockenlauf, ausser Demo wurde scharf geschaltet).")
 
 
 if __name__ == "__main__":
