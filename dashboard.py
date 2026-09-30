@@ -86,7 +86,8 @@ def daten():
         st["verlauf"] = lies(os.path.join(HIER, f"verlauf-{stamm}.json"), [])
         st["log"] = log_ende(os.path.join(HIER, f"log-{stamm}.txt"))
         bots[bot] = st
-    return {"jetzt": time.time(), "version": seiten_version(), "bots": bots, "probleme": probleme}
+    return {"jetzt": time.time(), "version": seiten_version(), "bots": bots, "probleme": probleme,
+            "laeufe": lies(os.path.join(HIER, "laeufe.json"), [])[-100:]}
 
 
 EINST_FELDER = ("start_lot", "schritt_lot", "schritt_prozent", "start", "ende")
@@ -173,8 +174,28 @@ def schalte(scharf=None, laeuft=None):
 
 
 def statistik_zuruecksetzen():
-    """Tagesbuch und Log nach archiv/zurueckgesetzt-<Zeit>/ legen und die Bots neu starten lassen
-    (dadurch beginnt auch die Tageskurve neu). Anker und Stufe des laufenden Tages bleiben."""
+    """Beendet den laufenden Lauf: seine Zahlen kommen nach laeufe.json ("Vergangene Laeufe"),
+    Tagesbuch/Log/Stand ins Archiv, und beide Configs bekommen zaehl_ab = jetzt. Die Bots starten
+    dadurch neu und zaehlen nur noch, was ab jetzt passiert. Anker und Stufe des Tages bleiben."""
+    jetzt = time.time()
+    eintrag = {"ende": jetzt, "bots": {}}
+    for r in ("long", "short"):
+        st = lies(os.path.join(HIER, f"status-config-{r}.json"), None) or {}
+        if st.get("problem") or not st.get("konto"):
+            continue
+        eintrag["seit"] = min(eintrag.get("seit", jetzt), float(st.get("lauf_seit") or jetzt))
+        eintrag["bots"][r] = {"konto": st.get("konto"), "demo": st.get("demo"), "ergebnis": st.get("lauf_ergebnis"),
+                              "volumen": st.get("lauf_volumen"), "deals": st.get("lauf_deals"), "runden": st.get("lauf_runden"),
+                              "equity_ende": st.get("equity")}
+        eintrag["einstellungen"] = {k: st.get(k) for k in ("start_lot", "schritt_lot", "schritt_prozent")}
+        eintrag["waehrung"] = st.get("waehrung", "")
+    if eintrag["bots"]:
+        laeufe = lies(os.path.join(HIER, "laeufe.json"), [])
+        laeufe.append(eintrag)
+        p = os.path.join(HIER, "laeufe.json")
+        with open(p + ".neu", "w", encoding="utf-8") as f:
+            json.dump(laeufe[-500:], f, indent=1, ensure_ascii=False)
+        os.replace(p + ".neu", p)
     ziel = os.path.join(HIER, "archiv", time.strftime("zurueckgesetzt-%Y%m%d-%H%M%S"))
     os.makedirs(ziel, exist_ok=True)
     for muster in ("verlauf-*.json", "log-*.txt", "status-*.json"):
@@ -185,9 +206,13 @@ def statistik_zuruecksetzen():
                 pass
     for r in ("long", "short"):
         p = os.path.join(HIER, f"config-{r}.json")
-        if os.path.isfile(p):
-            os.utime(p, None)                  # geaenderte Config = Bot startet neu
-    return True, "Statistik zurueckgesetzt — alte Werte liegen in archiv."
+        c = lies(p, None)
+        if c:
+            c["zaehl_ab"] = jetzt              # geaenderte Config = Bot startet neu und zaehlt ab jetzt
+            with open(p + ".neu", "w", encoding="utf-8") as f:
+                json.dump(c, f, indent=2, ensure_ascii=False)
+            os.replace(p + ".neu", p)
+    return True, "Zurueckgesetzt — der bisherige Lauf steht unter 'Vergangene Laeufe', ab jetzt zaehlt alles neu."
 
 
 class H(BaseHTTPRequestHandler):

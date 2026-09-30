@@ -11,3 +11,6 @@ __pycache__/
 *.neu
 *.neulong
 *.neushort
+lauf-*.json
+laeufe.json
+archiv/

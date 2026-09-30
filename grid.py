@@ -68,6 +68,7 @@ STANDARD = {
     "poll_interval": 0.5,
     "scharf": False,              # erst true = es werden wirklich Orders gesendet
     "laeuft": True,               # false = gestoppt (Knopf in der Uebersicht): alles schliessen, nichts Neues
+    "zaehl_ab": 0.0,              # Beginn des laufenden Laufs (Unix-Zeit), gesetzt von "Statistik zuruecksetzen"
 }
 
 
@@ -169,6 +170,14 @@ def log(text, pfad=None):
             pass
 
 
+def lies_json(pfad):
+    try:
+        with open(pfad, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return None
+
+
 def problem_melden(stamm, cfg, text):
     """Bot kann nicht laufen: statt eines veralteten Stands zeigt die Uebersicht diesen Grund an."""
     pfad = os.path.join(HIER, f"status-{stamm}.json")
@@ -260,15 +269,26 @@ def main():
     status_pfad = os.path.join(HIER, f"status-{stamm}.json")
     verlauf_pfad = os.path.join(HIER, f"verlauf-{stamm}.json")
     kurve = {"tag": None, "punkte": []}       # Tagesergebnis je Minute fuer die Uebersicht
+    lauf_pfad = os.path.join(HIER, f"lauf-{stamm}.json")
+    # Ein "Lauf" beginnt mit "Statistik zuruecksetzen" (cfg zaehl_ab). Gezaehlt wird nur, was danach
+    # geschah — vorher las der Bot die Deals des ganzen Tages aus der Fusion-Historie wieder ein,
+    # das Zuruecksetzen hielt nur Sekunden (Finn 30.09.2026).
+    lauf = lies_json(lauf_pfad) or {}
+    kurve_ab = {"wert": None}
 
-    def tages_deals(tag):
-        """Eigene Deals des Servertags: (Ergebnis inkl. Kosten, gehandeltes Volumen, Anzahl, letzte 60 fuer die Anzeige)."""
+    def server_versatz(jetzt):
+        """Serverzeit minus echte Zeit, auf Viertelstunden gerundet (Fusion: +2 bzw. +3 h)."""
+        return round(((jetzt - dt.datetime(1970, 1, 1)).total_seconds() - time.time()) / 900.0) * 900
+
+    def tages_deals(tag, ab_server=0):
+        """Eigene Deals des Servertags ab ab_server (Serverzeit-Sekunden):
+        (Ergebnis inkl. Kosten, gehandeltes Volumen, Anzahl, letzte 60 fuer die Anzeige)."""
         try:
             von = dt.datetime.strptime(tag, "%Y-%m-%d").replace(tzinfo=dt.timezone.utc)
             ds = mt5.history_deals_get(von, von + dt.timedelta(days=1, hours=2)) or []
         except Exception:
             return 0.0, 0.0, 0, []
-        ds = [d for d in ds if int(d.magic) == MAGIC and d.symbol == sym]
+        ds = [d for d in ds if int(d.magic) == MAGIC and d.symbol == sym and int(d.time) >= ab_server]
         erg = sum(float(d.profit) + float(d.commission) + float(d.swap) + float(getattr(d, "fee", 0.0) or 0.0) for d in ds)
         liste = [{"zeit": dt.datetime.fromtimestamp(int(d.time), dt.timezone.utc).replace(tzinfo=None).strftime("%H:%M:%S"), "kauf": int(d.type) == 0,
                   "auf": int(getattr(d, "entry", 0)) == 0, "lot": round(float(d.volume), 2), "preis": round(float(d.price), 2),
@@ -307,14 +327,36 @@ def main():
             k = mt5.account_info(); ps = eigene()
             ist = sum(float(p.volume) for p in ps); offen = sum(float(p.profit) + float(p.swap) for p in ps)
             tag = z.get("tag")
-            real, vol, anzahl, deal_liste = tages_deals(tag) if tag else (0.0, 0.0, 0, [])
-            runden = min(int(z.get("hoch", 0)), int(z.get("runter", 0)))
+            versatz = server_versatz(jetzt)
+            zaehl_ab = float(cfg.get("zaehl_ab") or 0.0)
+            if lauf.get("ab") != zaehl_ab or not lauf.get("seit"):
+                # Neuer Lauf: Equity jetzt ist die Null-Linie, Grid-Runden zaehlen ab dem aktuellen Stand.
+                lauf.clear()
+                lauf.update({"ab": zaehl_ab, "seit": zaehl_ab or time.time(), "equity_start": float(k.equity) if k else 0.0,
+                             "basis": {"tag": tag, "hoch": int(z.get("hoch", 0)), "runter": int(z.get("runter", 0))}, "runden_vorher": 0,
+                             "runden_tage": {}})
+                schreibe_json(lauf_pfad, lauf)
+            ab_server = int(lauf["seit"] + versatz)
+            real, vol, anzahl, deal_liste = tages_deals(tag, ab_server) if tag else (0.0, 0.0, 0, [])
+            b = lauf.get("basis") or {}
+            bh, br = (b.get("hoch", 0), b.get("runter", 0)) if b.get("tag") == tag else (0, 0)
+            runden = max(0, min(int(z.get("hoch", 0)) - bh, int(z.get("runter", 0)) - br))
+            if tag and lauf["runden_tage"].get(tag) != runden:
+                lauf["runden_tage"][tag] = runden
+                schreibe_json(lauf_pfad, lauf)
+            lauf_runden = sum(lauf["runden_tage"].values())
+            try:
+                ld = mt5.history_deals_get(dt.datetime.fromtimestamp(ab_server, dt.timezone.utc), jetzt.replace(tzinfo=dt.timezone.utc) + dt.timedelta(days=1)) or []
+            except Exception:
+                ld = []
+            ld = [d for d in ld if int(d.magic) == MAGIC and d.symbol == sym and int(d.time) >= ab_server]
+            lauf_volumen = sum(float(d.volume) for d in ld)
             schritt_punkte = float(z.get("anker") or 0.0) * cfg["schritt_prozent"] / 100.0
             # Was die Grid-Runden gebracht haben: je Runde schritt_lot ueber eine Stufe. Der Rest des
             # Tagesergebnisses kommt aus dem Bestand (Start-Position), der mit dem Markt laeuft.
             grid_ertrag = runden * cfg["schritt_lot"] * schritt_punkte * punktwert
-            if kurve["tag"] != tag:
-                kurve["tag"] = tag; kurve["punkte"] = []
+            if kurve["tag"] != tag or kurve_ab["wert"] != lauf["ab"]:
+                kurve["tag"] = tag; kurve["punkte"] = []; kurve_ab["wert"] = lauf["ab"]
             minute = jetzt.hour * 60 + jetzt.minute
             if tag and (not kurve["punkte"] or kurve["punkte"][-1][0] != minute):
                 kurve["punkte"].append([minute, round(real + offen, 2)])
@@ -337,7 +379,10 @@ def main():
                 "guthaben": round(float(k.balance), 2) if k else None, "equity": round(float(k.equity), 2) if k else None,
                 "margin": round(float(k.margin), 2) if k else None, "margin_level": round(float(k.margin_level), 1) if k and k.margin else None,
                 "start": cfg["start"], "ende": cfg["ende"], "start_lot": cfg["start_lot"], "schritt_lot": cfg["schritt_lot"],
-                "schritt_prozent": cfg["schritt_prozent"], "kurve": kurve["punkte"][-1440:]})
+                "schritt_prozent": cfg["schritt_prozent"], "kurve": kurve["punkte"][-1440:],
+                "lauf_seit": lauf["seit"], "lauf_equity_start": round(lauf["equity_start"], 2),
+                "lauf_ergebnis": round(float(k.equity) - lauf["equity_start"], 2) if k else None,
+                "lauf_volumen": round(lauf_volumen, 2), "lauf_deals": len(ld), "lauf_runden": lauf_runden})
             # Abgeschlossenen Tag einmal ins Tagesbuch: Tag beendet und nichts mehr offen.
             if tag and z.get("fertig") and not ps:
                 try:
