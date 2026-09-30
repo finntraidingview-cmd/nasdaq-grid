@@ -97,7 +97,7 @@ def pruefe(richtung):
               f"Kurs {getattr(tick, 'bid', 0)} / {getattr(tick, 'ask', 0)}")
         if tick:
             import datetime as dt
-            print(f"  Serverzeit laut letztem Tick: {dt.datetime.utcfromtimestamp(int(tick.time)):%d.%m.%Y %H:%M:%S}")
+            print(f"  Serverzeit laut letztem Tick: {dt.datetime.fromtimestamp(int(tick.time), dt.timezone.utc).replace(tzinfo=None):%d.%m.%Y %H:%M:%S}")
         if cfg["schritt_lot"] < si.volume_min - 1e-9:
             print(f"  ❌ schritt_lot {cfg['schritt_lot']} liegt unter dem Mindest-Lot {si.volume_min}"); ok = False
         return ok, demo

@@ -253,7 +253,7 @@ def main():
             return 0.0, 0.0, 0, []
         ds = [d for d in ds if int(d.magic) == MAGIC and d.symbol == sym]
         erg = sum(float(d.profit) + float(d.commission) + float(d.swap) + float(getattr(d, "fee", 0.0) or 0.0) for d in ds)
-        liste = [{"zeit": dt.datetime.utcfromtimestamp(int(d.time)).strftime("%H:%M:%S"), "kauf": int(d.type) == 0,
+        liste = [{"zeit": dt.datetime.fromtimestamp(int(d.time), dt.timezone.utc).replace(tzinfo=None).strftime("%H:%M:%S"), "kauf": int(d.type) == 0,
                   "auf": int(getattr(d, "entry", 0)) == 0, "lot": round(float(d.volume), 2), "preis": round(float(d.price), 2),
                   "ergebnis": round(float(d.profit), 2)} for d in sorted(ds, key=lambda d: (int(d.time), int(d.ticket)))[-60:]]
         return erg, sum(float(d.volume) for d in ds), len(ds), liste
@@ -297,7 +297,7 @@ def main():
                 "stufe_min": z.get("min", 0), "stufe_max": z.get("max", 0), "punktwert": round(punktwert, 4),
                 "positionen_liste": [{"ticket": int(p.ticket), "lot": round(float(p.volume), 2), "preis": round(float(p.price_open), 2),
                                       "ergebnis": round(float(p.profit), 2),
-                                      "zeit": dt.datetime.utcfromtimestamp(int(p.time)).strftime("%H:%M:%S")}
+                                      "zeit": dt.datetime.fromtimestamp(int(p.time), dt.timezone.utc).replace(tzinfo=None).strftime("%H:%M:%S")}
                                      for p in sorted(ps, key=lambda p: -float(p.volume))[:80]],
                 "deals_liste": deal_liste,
                 "guthaben": round(float(k.balance), 2) if k else None, "equity": round(float(k.equity), 2) if k else None,
@@ -347,10 +347,10 @@ def main():
             # Markt steht: nichts zu tun, aber die Uebersicht soll sehen, dass der Bot lebt.
             if time.time() - letzter_status >= 15.0:
                 letzter_status = time.time()
-                status_schreiben(dt.datetime.utcfromtimestamp(int(tick.time)), (tick.bid + tick.ask) / 2.0, 0.0, False)
+                status_schreiben(dt.datetime.fromtimestamp(int(tick.time), dt.timezone.utc).replace(tzinfo=None), (tick.bid + tick.ask) / 2.0, 0.0, False)
             continue
         letzter_tick = int(tick.time)
-        jetzt = dt.datetime.utcfromtimestamp(int(tick.time))
+        jetzt = dt.datetime.fromtimestamp(int(tick.time), dt.timezone.utc).replace(tzinfo=None)
         heute = jetzt.strftime("%Y-%m-%d"); minute = jetzt.hour * 60 + jetzt.minute
         mitte = (tick.bid + tick.ask) / 2.0
         vorher = json.dumps(z, sort_keys=True)
