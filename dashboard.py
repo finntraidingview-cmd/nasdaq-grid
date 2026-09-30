@@ -186,6 +186,7 @@ def statistik_zuruecksetzen():
         eintrag["seit"] = min(eintrag.get("seit", jetzt), float(st.get("lauf_seit") or jetzt))
         eintrag["bots"][r] = {"konto": st.get("konto"), "demo": st.get("demo"), "ergebnis": st.get("lauf_ergebnis"),
                               "volumen": st.get("lauf_volumen"), "deals": st.get("lauf_deals"), "runden": st.get("lauf_runden"),
+                              "grid": st.get("grid_lauf"),
                               "equity_ende": st.get("equity")}
         eintrag["einstellungen"] = {k: st.get(k) for k in ("start_lot", "schritt_lot", "schritt_prozent")}
         eintrag["waehrung"] = st.get("waehrung", "")

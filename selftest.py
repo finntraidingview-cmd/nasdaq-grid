@@ -57,4 +57,17 @@ for richtung in ("long", "short"):
     pruefe(f"{richtung} kein Neustart am selben Tag", lauf("2026-10-01", 23 * 60 + 30, 29950), 0.0)
     pruefe(f"{richtung} naechster Tag", lauf("2026-10-02", 61, 30200), 1.0)
     pruefe(f"{richtung} neuer Anker", z["anker"], 30200)
+# Grid-Gewinn aus echten Kursen: Kauf 100, Verkauf 101 = +1 je Lot; offener Rest bleibt im Stapel
+from grid import grid_buchen
+g1, s1, p1 = grid_buchen([], True, 100.0, 0.01)
+pruefe("erst Kauf offen", (g1, s1, p1), (0.0, [[True, 100.0, 0.01]], 0))
+g2, s2, p2 = grid_buchen(s1, False, 101.0, 0.01)
+pruefe("Runde +1", (round(g2, 6), s2, p2), (0.01, [], 0.01))
+g3, s3, _ = grid_buchen([], False, 105.0, 0.01)
+g4, s4, _ = grid_buchen(s3, True, 104.0, 0.01)
+pruefe("Verkauf zuerst", round(g4, 6), 0.01)
+g5, s5, _ = grid_buchen([[True, 100.0, 0.01], [True, 99.0, 0.01]], False, 100.0, 0.01)
+pruefe("juengster zuerst", (round(g5, 6), s5), (0.01, [[True, 100.0, 0.01]]))
+g6, s6, _ = grid_buchen([[True, 100.0, 0.01]], True, 99.0, 0.01)
+pruefe("gleiche Seite stapelt", (g6, len(s6)), (0.0, 2))
 print(f"alle {ok} Pruefungen bestanden")

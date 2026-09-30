@@ -43,6 +43,12 @@ body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 var(--text);-w
 .kachel{display:flex;flex-direction:column;gap:6px;justify-content:space-between}
 .kachel .wert{font:600 22px/1.1 var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
 .kachel .unter{font-size:12px;color:var(--leise)}
+.gridfeld{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.gridfeld>div{background:var(--karte2);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:4px}
+.gridfeld .wert{font:650 24px/1.1 var(--mono);font-variant-numeric:tabular-nums}
+.gridfeld .name{font-size:12px;font-weight:650}
+.gridfuss{margin-top:12px;font-size:13px;color:var(--leise)} .gridfuss b{font-family:var(--mono);font-weight:600}
+@media (max-width:640px){.gridfeld{grid-template-columns:1fr}}
 .drei{display:grid;grid-template-columns:1fr minmax(300px,1.05fr) 1fr;gap:14px}
 .zwei{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .bot h2{font-size:16px;margin:0;margin-right:auto;font-weight:650}
@@ -137,6 +143,7 @@ pre{margin:12px 0 0;font:12px/1.55 var(--mono);white-space:pre-wrap;word-break:b
 <div id="leerstart" class="karte start" hidden><div style="font-size:17px;font-weight:650;margin-bottom:6px">Kein Bot aktiv</div><div class="leise" id="leertext">START-ALLES.bat ausführen – die Übersicht füllt sich dann von selbst.</div></div>
 <div id="inhalt" hidden>
   <div class="held"><div class="karte" id="held"></div><div class="kacheln" id="kacheln"></div></div>
+  <div class="karte"><div class="kopf"><span class="titel">Grid-Gewinne</span><span class="leise">nur abgeschlossene Grid-Runden (Kauf unten, Verkauf eine Stufe höher), echte Kurse inkl. Spread</span></div><div id="grid"></div></div>
   <div class="drei"><div id="botlong"></div><div class="karte"><div class="kopf"><span class="titel">Grid-Leiter</span><span class="leise" id="leiterinfo"></span></div><div id="leiter"></div></div><div id="botshort"></div></div>
   <div class="karte"><div class="kopf"><span class="titel">Tagesergebnis im Verlauf</span><span id="kurvelegende" class="leise"></span></div><div id="kurve"></div></div>
   <div class="zwei">
@@ -204,7 +211,7 @@ function kurve(b){
   return s+'</svg>'}
 
 function tageDaten(b){var m={};["long","short"].forEach(function(n){((b[n]||{}).verlauf||[]).forEach(function(e){(m[e.tag]=m[e.tag]||{})[n]=e})});
-  return Object.keys(m).sort().map(function(k){var l=m[k].long||{},s=m[k].short||{};return{tag:k,long:l.ergebnis,short:s.ergebnis,paar:(l.ergebnis||0)+(s.ergebnis||0),vol:(l.volumen||0)+(s.volumen||0),runden:Math.max(l.runden||0,s.runden||0),grid:(l.grid_ertrag||0)+(s.grid_ertrag||0),min:l.stufe_min!=null?l.stufe_min:s.stufe_min,max:l.stufe_max!=null?l.stufe_max:s.stufe_max}})}
+  return Object.keys(m).sort().map(function(k){var l=m[k].long||{},s=m[k].short||{};return{tag:k,long:l.ergebnis,short:s.ergebnis,paar:(l.ergebnis||0)+(s.ergebnis||0),vol:(l.volumen||0)+(s.volumen||0),runden:Math.max(l.runden||0,s.runden||0),grid:(l.grid_gewinn||0)+(s.grid_gewinn||0),min:l.stufe_min!=null?l.stufe_min:s.stufe_min,max:l.stufe_max!=null?l.stufe_max:s.stufe_max}})}
 function gesamtKurve(t){
   if(t.length<2)return"";var k=0,p=[[0,0]];t.forEach(function(x,i){k+=x.paar;p.push([i+1,k])});
   var g=rahmen([{p:p}],150),pts=p.map(function(q){return g.X(q[0]).toFixed(1)+","+g.Y(q[1]).toFixed(1)}).join(" "),farbe=k>=0?"var(--gut)":"var(--schlecht)";
@@ -214,20 +221,20 @@ function gesamtKurve(t){
 function tageTabelle(t){
   if(!t.length)return'<div class="leer">Noch kein abgeschlossener Tag. Der erste erscheint nach dem Tagesende.</div>';
   var max=Math.max.apply(null,t.map(function(x){return Math.abs(x.paar)}))||1;
-  var s='<table><thead><tr><th>Tag</th><th>Long</th><th>Short</th><th>Paar</th><th style="width:22%"></th><th>Runden</th><th>Spanne</th><th>Volumen</th></tr></thead><tbody>';
+  var s='<table><thead><tr><th>Tag</th><th>Long</th><th>Short</th><th>Paar</th><th style="width:22%"></th><th>davon Grid</th><th>Runden</th><th>Spanne</th><th>Volumen</th></tr></thead><tbody>';
   t.slice().reverse().slice(0,120).forEach(function(x){var w=Math.abs(x.paar)/max*50;
     s+='<tr><td>'+datum(x.tag)+'</td><td class="'+kl(x.long)+'">'+geld(x.long)+'</td><td class="'+kl(x.short)+'">'+geld(x.short)+'</td><td class="'+kl(x.paar)+'"><b>'+geld(x.paar)+'</b></td>'+
     '<td><div class="balken"><i style="'+(x.paar>=0?"left:50%":"right:50%")+';width:'+w+'%;background:var(--'+(x.paar>=0?"gut":"schlecht")+')"></i></div></td>'+
-    '<td>'+(x.runden||0)+'</td><td>'+(x.min==null?"–":vz(x.min)+" / "+vz(x.max))+'</td><td>'+zahl(x.vol,2)+'</td></tr>'});
+    '<td class="'+kl(x.grid)+'">'+geld(x.grid)+'</td><td>'+(x.runden||0)+'</td><td>'+(x.min==null?"–":vz(x.min)+" / "+vz(x.max))+'</td><td>'+zahl(x.vol,2)+'</td></tr>'});
   return s+'</tbody></table>'}
 
 function zeitpunkt(s){if(!s)return"–";var d=new Date(s*1000);return d.toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"})+" "+d.toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"})}
 function dauer(s){s=Math.max(0,Math.round(s/60));var h=Math.floor(s/60),m=s%60;return h>=24?Math.floor(h/24)+" T "+(h%24)+" h":h?h+" h "+m+" min":m+" min"}
 function laeufeTabelle(l){
   if(!l.length)return'<div class="leer">Noch kein abgeschlossener Lauf.</div>';
-  var s='<table><thead><tr><th>Zeitraum</th><th>Dauer</th><th>Long</th><th>Short</th><th>Paar</th><th>Volumen</th><th>Runden</th><th>Einstellung</th><th>Konten</th></tr></thead><tbody>';
+  var s='<table><thead><tr><th>Zeitraum</th><th>Dauer</th><th>Long</th><th>Short</th><th>Paar</th><th>davon Grid</th><th>Volumen</th><th>Runden</th><th>Einstellung</th><th>Konten</th></tr></thead><tbody>';
   l.slice().reverse().forEach(function(x){var L=(x.bots||{}).long||{},S=(x.bots||{}).short||{},p=(L.ergebnis||0)+(S.ergebnis||0),e=x.einstellungen||{};
-    s+='<tr><td>'+zeitpunkt(x.seit)+' – '+zeitpunkt(x.ende).slice(-5)+'</td><td>'+dauer((x.ende||0)-(x.seit||x.ende||0))+'</td><td class="'+kl(L.ergebnis)+'">'+geld(L.ergebnis)+'</td><td class="'+kl(S.ergebnis)+'">'+geld(S.ergebnis)+'</td><td class="'+kl(p)+'"><b>'+geld(p,x.waehrung)+'</b></td>'+
+    s+='<tr><td>'+zeitpunkt(x.seit)+' – '+zeitpunkt(x.ende).slice(-5)+'</td><td>'+dauer((x.ende||0)-(x.seit||x.ende||0))+'</td><td class="'+kl(L.ergebnis)+'">'+geld(L.ergebnis)+'</td><td class="'+kl(S.ergebnis)+'">'+geld(S.ergebnis)+'</td><td class="'+kl(p)+'"><b>'+geld(p,x.waehrung)+'</b></td><td class="'+kl((L.grid||0)+(S.grid||0))+'">'+geld((L.grid||0)+(S.grid||0))+'</td>'+
     '<td>'+zahl((L.volumen||0)+(S.volumen||0),2)+'</td><td>'+Math.max(L.runden||0,S.runden||0)+'</td><td>'+zahl(e.start_lot,2)+' · '+zahl(e.schritt_lot,2)+' je '+zahl(e.schritt_prozent,2)+' %</td><td>'+esc(L.konto||"–")+' / '+esc(S.konto||"–")+((L.demo||S.demo)?' <span class="pille flach">Demo</span>':'')+'</td></tr>'});
   return s+'</tbody></table>'}
 function posTabelle(b){
@@ -272,6 +279,11 @@ function zeige(d){
     ["Equity beide Konten",zahl(sum("equity"),2)+" "+esc(w),"zu Laufbeginn "+zahl(sum("lauf_equity_start"),2)],
     ["Gewinntage",t.length?plus+" von "+t.length:"–",bestTag?"bester "+geld(bestTag.paar)+" · schlechtester "+geld(schlTag.paar):"noch kein abgeschlossener Tag"]];
   setze("kacheln",K.map(function(k){return'<div class="karte kachel"><span class="titel">'+k[0]+'</span><span class="wert">'+k[1]+'</span><span class="unter">'+k[2]+'</span></div>'}).join(""));
+  var gL=(b.long||{}).grid_heute,gS=(b.short||{}).grid_heute,gZ=(gL||0)+(gS||0),lL=(b.long||{}).grid_lauf,lS=(b.short||{}).grid_lauf,lZ=(lL||0)+(lS||0);
+  var rL=(b.long||{}).rest_heute,rS=(b.short||{}).rest_heute;
+  function gk(name,farbe,h_,l_){return'<div><span class="name" style="color:'+farbe+'">'+name+'</span><span class="wert '+kl(h_)+'">'+geld(h_,w)+'</span><span class="leise">heute · im Lauf <b class="'+kl(l_)+'" style="font-family:var(--mono)">'+geld(l_)+'</b></span></div>'}
+  setze("grid",'<div class="gridfeld">'+gk("Long","var(--long)",gL,lL)+gk("Short","var(--short)",gS,lS)+gk("Zusammen","var(--fg)",gZ,lZ)+'</div>'+
+    '<div class="gridfuss">Rest heute aus Start-Position und Tagesschluss: Long <b class="'+kl(rL)+'">'+geld(rL)+'</b> · Short <b class="'+kl(rS)+'">'+geld(rS)+'</b> · zusammen <b class="'+kl((rL||0)+(rS||0))+'">'+geld((rL||0)+(rS||0))+'</b></div>');
   setze("botlong",b.long?botKarte(b.long):'<div class="karte leer"><b>Long-Bot</b><br>'+esc(pr.long||"läuft nicht")+'</div>');
   setze("botshort",b.short?botKarte(b.short):'<div class="karte leer"><b>Short-Bot</b><br>'+esc(pr.short||"läuft nicht")+'</div>');
   setze("leiter",leiter(e));

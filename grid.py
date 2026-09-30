@@ -118,7 +118,8 @@ def naechster_zustand(z, heute, minute, mitte, cfg):
     if z.get("tag") != heute and start <= minute < ende:
         # hoch/runter = beruehrte Stufen je Richtung; jede Stufe hoch UND wieder runter ist eine
         # abgeschlossene Grid-Runde (schritt_lot einmal verkauft und eine Stufe tiefer zurueckgekauft).
-        z = {"tag": heute, "anker": mitte, "cur": 0, "fertig": False, "hoch": 0, "runter": 0, "min": 0, "max": 0}
+        z = {"tag": heute, "anker": mitte, "cur": 0, "fertig": False, "hoch": 0, "runter": 0, "min": 0, "max": 0,
+             "stapel": [], "grid_gewinn": 0.0, "grid_lot": 0.0}
         ereignis = f"neuer Tag, Anker {mitte:.2f}, Schritt {mitte * cfg['schritt_prozent'] / 100.0:.2f} Punkte"
     aktiv = z.get("tag") == heute and not z.get("fertig")
     if aktiv:
@@ -132,6 +133,28 @@ def naechster_zustand(z, heute, minute, mitte, cfg):
             z["cur"] = neu
             z["min"] = min(z.get("min", 0), neu); z["max"] = max(z.get("max", 0), neu)
     return z, aktiv, ereignis
+
+
+def grid_buchen(stapel, kauf, preis, lot):
+    """Grid-Gewinn aus echten Ausfuehrungskursen: Jeder Grid-Kauf wird gegen den juengsten offenen
+    Grid-Verkauf verrechnet und umgekehrt (Kauf unten, Verkauf eine Stufe hoeher = eine Runde).
+    stapel = [[kauf, preis, lot], ...]. Liefert (Gewinn in Punkten*Lot, neuer Stapel, verrechnetes Lot).
+    Was am Tagesende im Stapel uebrig bleibt, war keine Runde — das gehoert zu Start-Position und Schluss."""
+    stapel = [list(x) for x in stapel]
+    rest = round(lot, 8); gewinn = 0.0; gepaart = 0.0
+    while rest > 1e-9 and stapel and bool(stapel[-1][0]) != bool(kauf):
+        s_kauf, s_preis, s_lot = stapel[-1]
+        m = min(rest, s_lot)
+        verkauf_preis, kauf_preis = (s_preis, preis) if kauf else (preis, s_preis)
+        gewinn += (verkauf_preis - kauf_preis) * m
+        gepaart += m; rest = round(rest - m, 8)
+        if s_lot - m > 1e-9:
+            stapel[-1][2] = round(s_lot - m, 8)
+        else:
+            stapel.pop()
+    if rest > 1e-9:
+        stapel.append([bool(kauf), preis, rest])
+    return gewinn, stapel, round(gepaart, 8)
 
 
 def abgleich_plan(positionen, soll, vol_step, vol_max=1e9):
@@ -264,7 +287,7 @@ def main():
             L(f"❌ {was} abgelehnt: {getattr(r, 'retcode', None)} {getattr(r, 'comment', '')} {mt5.last_error() if r is None else ''}")
             return False
         L(f"✅ {was} @ {getattr(r, 'price', 0):.2f}")
-        return True
+        return float(getattr(r, "price", 0.0) or 0.0) or float(req.get("price") or 0.0)
 
     status_pfad = os.path.join(HIER, f"status-{stamm}.json")
     verlauf_pfad = os.path.join(HIER, f"verlauf-{stamm}.json")
@@ -334,7 +357,7 @@ def main():
                 lauf.clear()
                 lauf.update({"ab": zaehl_ab, "seit": zaehl_ab or time.time(), "equity_start": float(k.equity) if k else 0.0,
                              "basis": {"tag": tag, "hoch": int(z.get("hoch", 0)), "runter": int(z.get("runter", 0))}, "runden_vorher": 0,
-                             "runden_tage": {}})
+                             "runden_tage": {}, "grid_basis": {"tag": tag, "wert": float(z.get("grid_gewinn", 0.0))}, "grid_tage": {}})
                 schreibe_json(lauf_pfad, lauf)
             ab_server = int(lauf["seit"] + versatz)
             real, vol, anzahl, deal_liste = tages_deals(tag, ab_server) if tag else (0.0, 0.0, 0, [])
@@ -345,6 +368,13 @@ def main():
                 lauf["runden_tage"][tag] = runden
                 schreibe_json(lauf_pfad, lauf)
             lauf_runden = sum(lauf["runden_tage"].values())
+            gb = lauf.get("grid_basis") or {}
+            grid_heute = float(z.get("grid_gewinn", 0.0)) - (float(gb.get("wert", 0.0)) if gb.get("tag") == tag else 0.0)
+            lauf.setdefault("grid_tage", {})
+            if tag and abs(lauf["grid_tage"].get(tag, 0.0) - grid_heute) > 1e-6:
+                lauf["grid_tage"][tag] = round(grid_heute, 4)
+                schreibe_json(lauf_pfad, lauf)
+            grid_lauf = sum(lauf["grid_tage"].values())
             try:
                 ld = mt5.history_deals_get(dt.datetime.fromtimestamp(ab_server, dt.timezone.utc), jetzt.replace(tzinfo=dt.timezone.utc) + dt.timedelta(days=1)) or []
             except Exception:
@@ -382,7 +412,9 @@ def main():
                 "schritt_prozent": cfg["schritt_prozent"], "kurve": kurve["punkte"][-1440:],
                 "lauf_seit": lauf["seit"], "lauf_equity_start": round(lauf["equity_start"], 2),
                 "lauf_ergebnis": round(float(k.equity) - lauf["equity_start"], 2) if k else None,
-                "lauf_volumen": round(lauf_volumen, 2), "lauf_deals": len(ld), "lauf_runden": lauf_runden})
+                "lauf_volumen": round(lauf_volumen, 2), "lauf_deals": len(ld), "lauf_runden": lauf_runden,
+                "grid_heute": round(grid_heute, 2), "grid_lauf": round(grid_lauf, 2), "rest_heute": round(real + offen - grid_heute, 2),
+                "grid_offen_lot": round(sum(x[2] for x in z.get("stapel", [])), 2)})
             # Abgeschlossenen Tag einmal ins Tagesbuch: Tag beendet und nichts mehr offen.
             if tag and z.get("fertig") and not ps:
                 try:
@@ -392,6 +424,7 @@ def main():
                     buch = []
                 if not any(e.get("tag") == tag for e in buch):
                     buch.append({"tag": tag, "ergebnis": round(real, 2), "volumen": round(vol, 2), "deals": anzahl,
+                                 "grid_gewinn": round(grid_heute, 2), "rest": round(real - grid_heute, 2),
                                  "runden": runden, "grid_ertrag": round(grid_ertrag, 2),
                                  "stufe_min": z.get("min", 0), "stufe_max": z.get("max", 0),
                                  "anker": z.get("anker"), "schluss_stufe": z.get("cur", 0), "guthaben": round(float(k.balance), 2) if k else None})
@@ -482,6 +515,9 @@ def main():
             if meldung != letzte_meldung:
                 L(meldung); letzte_meldung = meldung
             continue
+        # Grid-Order = Verschieben um eine Stufe mitten im Tag. Nicht: Tagesstart (von 0 auf Start-Lot),
+        # Tagesschluss/Stopp (auf 0) — die gehoeren zu Start-Position und Schluss, nicht zum Grid-Gewinn.
+        grid_order = aktiv and soll > 0 and sum(float(p.volume) for p in ps) > 0
         for auftrag in plan:
             tick = mt5.symbol_info_tick(sym)
             if auftrag[0] == "auf":
@@ -498,10 +534,22 @@ def main():
                        "deviation": int(cfg["deviation_points"]), "magic": MAGIC, "comment": f"grid {z.get('cur', 0):+d}",
                        "type_time": mt5.ORDER_TIME_GTC, "type_filling": filling}
                 ok = senden(req, f"{'Verkauf' if kauf_richtung else 'Kauf'} {auftrag[2]:.2f} (zu, Ticket {auftrag[1]})")
-            if not ok:
+            if ok is False:
                 # Abgelehnt (Markt zu, kein Geld, Handel aus): 5 s warten statt je Durchlauf neu zu senden.
                 pause_bis = time.time() + 5.0
                 break
+            if grid_order and ok:
+                lot = auftrag[1] if auftrag[0] == "auf" else auftrag[2]
+                ist_kauf = (auftrag[0] == "auf") == kauf_richtung
+                gew, z["stapel"], _gepaart = grid_buchen(z.get("stapel", []), ist_kauf, ok, lot)
+                if gew:
+                    z["grid_gewinn"] = round(float(z.get("grid_gewinn", 0.0)) + gew * punktwert, 4)
+                    L(f"Grid-Runde: {gew * punktwert:+.2f} {getattr(konto, 'currency', '')} (heute {z['grid_gewinn']:+.2f})")
+                try:
+                    with open(zustand_pfad, "w", encoding="utf-8") as f:
+                        json.dump(z, f)
+                except OSError:
+                    pass
 
 
 if __name__ == "__main__":
