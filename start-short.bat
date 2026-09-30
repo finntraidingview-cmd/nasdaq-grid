@@ -16,9 +16,11 @@ goto loop
 
 :update
 rem Laedt grid.py und VERSION aus dem Repo; ersetzt nur vollstaendige Downloads, Vorversion bleibt als .prev.
-powershell -NoProfile -Command "$ProgressPreference='SilentlyContinue';$b='https://raw.githubusercontent.com/finntraidingview-cmd/nasdaq-grid/main/';foreach($f in @('grid.py','einrichten.py','VERSION')){try{Invoke-RestMethod ($b+$f) -OutFile ($f+'.neushort') -TimeoutSec 25}catch{}}"
+powershell -NoProfile -Command "$ProgressPreference='SilentlyContinue';$b='https://raw.githubusercontent.com/finntraidingview-cmd/nasdaq-grid/main/';foreach($f in @('grid.py','einrichten.py','dashboard.py','dashboard.html','VERSION')){try{Invoke-RestMethod ($b+$f) -OutFile ($f+'.neushort') -TimeoutSec 25}catch{}}"
 call :swap grid.py 8000
 call :swap einrichten.py 3000
+call :swap dashboard.py 1500
+call :swap dashboard.html 5000
 call :swap VERSION 3
 exit /b
 

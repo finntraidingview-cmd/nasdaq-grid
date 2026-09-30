@@ -38,5 +38,6 @@ oder sie von Hand geschlossen werden.
 | `config-*.vorlage.json` | Ausgangswerte der Einstellungen |
 | `start-long.bat`, `start-short.bat` | Start mit Selbst-Update und automatischem Neustart |
 | `installieren.ps1` | Ersteinrichtung auf einem PC |
+| `start-dashboard.bat`, `dashboard.py`, `dashboard.html` | Übersicht im Browser unter http://localhost:8790 (nur auf diesem PC, sendet nichts) |
 | `VERSION` | jede Änderung am Bot erhöht sie — das löst das Update auf den PCs aus |
-| `log-*.txt`, `zustand-*.json` | entstehen beim Laufen |
+| `log-*.txt`, `zustand-*.json`, `status-*.json`, `verlauf-*.json` | entstehen beim Laufen |

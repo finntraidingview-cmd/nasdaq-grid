@@ -230,6 +230,69 @@ def main():
         L(f"✅ {was} @ {getattr(r, 'price', 0):.2f}")
         return True
 
+    status_pfad = os.path.join(HIER, f"status-{stamm}.json")
+    verlauf_pfad = os.path.join(HIER, f"verlauf-{stamm}.json")
+    kurve = {"tag": None, "punkte": []}       # Tagesergebnis je Minute fuer die Uebersicht
+
+    def tages_deals(tag):
+        """Eigene Deals des Servertags: (Ergebnis inkl. Kosten, gehandeltes Volumen, Anzahl)."""
+        try:
+            von = dt.datetime.strptime(tag, "%Y-%m-%d").replace(tzinfo=dt.timezone.utc)
+            ds = mt5.history_deals_get(von, von + dt.timedelta(days=1, hours=2)) or []
+        except Exception:
+            return 0.0, 0.0, 0
+        ds = [d for d in ds if int(d.magic) == MAGIC and d.symbol == sym]
+        erg = sum(float(d.profit) + float(d.commission) + float(d.swap) + float(getattr(d, "fee", 0.0) or 0.0) for d in ds)
+        return erg, sum(float(d.volume) for d in ds), len(ds)
+
+    def schreibe_json(pfad, daten):
+        try:
+            tmp = pfad + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(daten, f)
+            os.replace(tmp, pfad)
+        except OSError:
+            pass
+
+    def status_schreiben(jetzt, mitte, soll, aktiv):
+        """Stand fuer die Uebersicht (dashboard.py). Reine Anzeige — ein Fehler hier darf den Bot nie stoppen."""
+        try:
+            k = mt5.account_info(); ps = eigene()
+            ist = sum(float(p.volume) for p in ps); offen = sum(float(p.profit) + float(p.swap) for p in ps)
+            tag = z.get("tag")
+            real, vol, anzahl = tages_deals(tag) if tag else (0.0, 0.0, 0)
+            if kurve["tag"] != tag:
+                kurve["tag"] = tag; kurve["punkte"] = []
+            minute = jetzt.hour * 60 + jetzt.minute
+            if tag and (not kurve["punkte"] or kurve["punkte"][-1][0] != minute):
+                kurve["punkte"].append([minute, round(real + offen, 2)])
+            schreibe_json(status_pfad, {
+                "bot": cfg["richtung"], "konto": int(k.login) if k else None, "waehrung": getattr(k, "currency", ""),
+                "scharf": bool(cfg["scharf"]), "version": version, "geschrieben": time.time(),
+                "serverzeit": jetzt.strftime("%Y-%m-%d %H:%M:%S"), "kurs": round(mitte, 2),
+                "tag": tag, "aktiv": bool(aktiv), "anker": z.get("anker"), "stufe": z.get("cur", 0),
+                "soll_lot": soll, "ist_lot": round(ist, 2), "positionen": len(ps),
+                "offen": round(offen, 2), "realisiert": round(real, 2), "tagesergebnis": round(real + offen, 2),
+                "volumen": round(vol, 2), "deals": anzahl,
+                "guthaben": round(float(k.balance), 2) if k else None, "equity": round(float(k.equity), 2) if k else None,
+                "margin": round(float(k.margin), 2) if k else None, "margin_level": round(float(k.margin_level), 1) if k and k.margin else None,
+                "start": cfg["start"], "ende": cfg["ende"], "start_lot": cfg["start_lot"], "schritt_lot": cfg["schritt_lot"],
+                "schritt_prozent": cfg["schritt_prozent"], "kurve": kurve["punkte"][-1440:]})
+            # Abgeschlossenen Tag einmal ins Tagesbuch: Tag beendet und nichts mehr offen.
+            if tag and z.get("fertig") and not ps:
+                try:
+                    with open(verlauf_pfad, "r", encoding="utf-8") as f:
+                        buch = json.load(f)
+                except (OSError, ValueError):
+                    buch = []
+                if not any(e.get("tag") == tag for e in buch):
+                    buch.append({"tag": tag, "ergebnis": round(real, 2), "volumen": round(vol, 2), "deals": anzahl,
+                                 "anker": z.get("anker"), "schluss_stufe": z.get("cur", 0), "guthaben": round(float(k.balance), 2) if k else None})
+                    schreibe_json(verlauf_pfad, buch[-400:])
+        except Exception as e:
+            L(f"(Status nicht geschrieben: {type(e).__name__})")
+
+    letzter_status = 0.0
     letzte_meldung = None
     pause_bis = 0.0
     letzter_tick = 0
@@ -250,6 +313,10 @@ def main():
         # Serverzeit aus dem Tick. Ohne neuen Tick (Markt zu) bleibt die Zeit stehen —
         # dann wird auch nichts gesendet.
         if int(tick.time) == letzter_tick and z.get("fertig") is not False:
+            # Markt steht: nichts zu tun, aber die Uebersicht soll sehen, dass der Bot lebt.
+            if time.time() - letzter_status >= 15.0:
+                letzter_status = time.time()
+                status_schreiben(dt.datetime.utcfromtimestamp(int(tick.time)), (tick.bid + tick.ask) / 2.0, 0.0, False)
             continue
         letzter_tick = int(tick.time)
         jetzt = dt.datetime.utcfromtimestamp(int(tick.time))
@@ -266,6 +333,9 @@ def main():
             except OSError:
                 pass
         soll = soll_volumen(cfg["richtung"], cfg["start_lot"], cfg["schritt_lot"], z.get("cur", 0), cfg["max_lot"], vol_step) if aktiv else 0.0
+        if time.time() - letzter_status >= 3.0:
+            letzter_status = time.time()
+            status_schreiben(jetzt, mitte, soll, aktiv)
         if time.time() < pause_bis:
             continue
         ps = eigene()

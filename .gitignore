@@ -1,9 +1,12 @@
 config-long.json
 config-short.json
 zustand-*.json
+status-*.json
+verlauf-*.json
 log-*.txt
 __pycache__/
 *.pyc
 *.prev
+*.tmp
 *.neulong
 *.neushort
