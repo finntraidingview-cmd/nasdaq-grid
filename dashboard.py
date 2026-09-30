@@ -41,16 +41,25 @@ def selbst_update():
     """Alle 2 Minuten nach einer neuen Version sehen. Die Seite (dashboard.html) wird von der Platte
     gelesen und ist damit sofort neu; hat sich dashboard.py selbst geaendert, beendet sich der
     Server und die .bat-Schleife startet den neuen. Der Browser laedt sich ueber 'version' neu."""
+    eigen = os.path.abspath(__file__)
+    stand = os.path.getmtime(eigen)
     while True:
-        time.sleep(120)
+        time.sleep(20)
+        # Neu starten, sobald dashboard.py auf der Platte neuer ist — egal wer das Update geholt hat
+        # (01.10.2026: ein Bot hatte es geholt, die Uebersicht lief mit dem alten Programm weiter).
         try:
-            import importlib, update
-            importlib.reload(update)
-            if "dashboard.py" in update.lauf(leise=True):
+            if os.path.getmtime(eigen) != stand:
                 print("neue Version von dashboard.py — Neustart", flush=True)
                 os._exit(0)
-        except Exception:
+        except OSError:
             pass
+        if int(time.time()) % 120 < 20:
+            try:
+                import importlib, update
+                importlib.reload(update)
+                update.lauf(leise=True)
+            except Exception:
+                pass
 
 
 def daten():
