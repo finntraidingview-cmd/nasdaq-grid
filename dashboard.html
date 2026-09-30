@@ -2,103 +2,229 @@
 <html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Nasdaq-Grid</title>
 <style>
-:root{--bg:#F3F5F6;--karte:#FFFFFF;--fg:#141B1F;--leise:#64727A;--linie:#DCE2E5;--gut:#1A7F4B;--schlecht:#B73A32;--warn:#8A5F10;--long:#0E6E8C;--short:#8C4A0E;--gutbg:#E2F2E9;--schlechtbg:#F8E5E3;--warnbg:#F6EEDC;--flachbg:#E9EDEF;
- --mono:ui-monospace,"SF Mono","Cascadia Mono",Consolas,monospace;--text:system-ui,"Segoe UI",sans-serif}
-@media (prefers-color-scheme:dark){:root{--bg:#0F1417;--karte:#182025;--fg:#E4EAED;--leise:#90A0A8;--linie:#2A363C;--gut:#5CC48A;--schlecht:#EE7B72;--warn:#DDB057;--long:#5FB8D4;--short:#E0A061;--gutbg:#173326;--schlechtbg:#3A1F1D;--warnbg:#362C14;--flachbg:#222C31;color-scheme:dark}}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 var(--text)}
-.wrap{max-width:1080px;margin:0 auto;padding:20px 16px 48px;display:flex;flex-direction:column;gap:16px}
-header{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 16px}h1{font-size:22px;margin:0;font-weight:650}
-.leise{color:var(--leise)}.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
-.raster{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
-.zwei{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px}
-.karte{background:var(--karte);border:1px solid var(--linie);border-radius:8px;padding:14px;min-width:0;display:flex;flex-direction:column;gap:10px}
-.kachel .wert{font:600 24px/1.1 var(--mono);font-variant-numeric:tabular-nums}.kachel .name{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--leise)}
-.gut{color:var(--gut)}.schlecht{color:var(--schlecht)}
-.pille{display:inline-block;font:12px var(--mono);padding:2px 8px;border-radius:999px;white-space:nowrap}
-.pille.gut{background:var(--gutbg)}.pille.schlecht{background:var(--schlechtbg)}.pille.warn{background:var(--warnbg);color:var(--warn)}.pille.flach{background:var(--flachbg);color:var(--leise)}
-.kopf{display:flex;flex-wrap:wrap;align-items:center;gap:8px}.kopf h2{font-size:17px;margin:0;margin-right:auto}
-.long h2{color:var(--long)}.short h2{color:var(--short)}
-dl{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin:0}dt{color:var(--leise)}dd{margin:0;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
-.balken{height:8px;background:var(--flachbg);border-radius:4px;position:relative;overflow:hidden}.balken i{position:absolute;top:0;bottom:0;border-radius:4px}
-svg{width:100%;height:auto;display:block}svg text{font:11px var(--mono);fill:var(--leise)}
-table{width:100%;border-collapse:collapse;font-size:14px}th,td{padding:6px 8px;border-bottom:1px solid var(--linie);text-align:right;white-space:nowrap}th:first-child,td:first-child{text-align:left}
-th{font:500 12px var(--mono);color:var(--leise);text-transform:uppercase;letter-spacing:.05em}tbody tr:last-child td{border-bottom:0}
-.rollen{overflow-x:auto}pre{margin:0;font:12px/1.5 var(--mono);white-space:pre-wrap;word-break:break-word;max-height:260px;overflow:auto;color:var(--leise)}
-.tabs{display:flex;gap:6px}.tabs button{font:13px var(--text);padding:4px 10px;border:1px solid var(--linie);border-radius:6px;background:var(--karte);color:var(--fg);cursor:pointer}.tabs button[aria-pressed=true]{background:var(--fg);color:var(--karte)}
-.leer{padding:28px;text-align:center;color:var(--leise)}
+:root{
+  --bg:#F4F6F8;--karte:#FFFFFF;--karte2:#F8FAFB;--fg:#10181D;--leise:#65747D;--linie:#E1E7EA;
+  --gut:#12804A;--schlecht:#C0392F;--warn:#8A5F10;--long:#0B7A99;--short:#B26A12;
+  --gutbg:#E3F3EA;--schlechtbg:#FAE7E5;--warnbg:#F7EFDD;--flachbg:#ECF0F2;--longbg:#E2F1F6;--shortbg:#F8EEDF;
+  --schatten:0 1px 2px rgba(16,24,29,.04),0 4px 16px rgba(16,24,29,.04);
+  --mono:ui-monospace,"Cascadia Mono","SF Mono",Consolas,monospace;--text:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0B1013;--karte:#131A1E;--karte2:#171F24;--fg:#E6ECEF;--leise:#8798A1;--linie:#232E34;
+  --gut:#4FCB8B;--schlecht:#F0776D;--warn:#E0B45C;--long:#56BEDD;--short:#E8A55B;
+  --gutbg:#12301F;--schlechtbg:#3A1C1A;--warnbg:#352B13;--flachbg:#1D262B;--longbg:#10303A;--shortbg:#38270F;
+  --schatten:none;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 var(--text);-webkit-font-smoothing:antialiased}
+.wrap{max-width:1240px;margin:0 auto;padding:18px 18px 56px;display:flex;flex-direction:column;gap:14px}
+.leise{color:var(--leise)} .gut{color:var(--gut)} .schlecht{color:var(--schlecht)}
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px}
+.marke{font-size:18px;font-weight:650;letter-spacing:-.01em;margin-right:auto;display:flex;align-items:center;gap:10px}
+.punkt{width:9px;height:9px;border-radius:50%;background:var(--leise)}
+.punkt.an{background:var(--gut);animation:puls 2s infinite}
+.punkt.aus{background:var(--schlecht)}
+@keyframes puls{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--gut) 50%,transparent)}70%{box-shadow:0 0 0 7px transparent}100%{box-shadow:0 0 0 0 transparent}}
+@media (prefers-reduced-motion:reduce){.punkt.an{animation:none}}
+.chip{font:12px var(--mono);padding:4px 10px;border-radius:999px;background:var(--karte);border:1px solid var(--linie);white-space:nowrap}
+.pille{display:inline-block;font:11px var(--mono);padding:2px 8px;border-radius:999px;white-space:nowrap}
+.pille.gut{background:var(--gutbg)} .pille.schlecht{background:var(--schlechtbg)} .pille.warn{background:var(--warnbg);color:var(--warn)} .pille.flach{background:var(--flachbg);color:var(--leise)}
+.karte{background:var(--karte);border:1px solid var(--linie);border-radius:12px;padding:16px;min-width:0;box-shadow:var(--schatten)}
+.titel{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--leise);font-weight:600}
+.kopf{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:12px}
+.kopf .titel{margin-right:auto}
+.held{display:grid;grid-template-columns:minmax(280px,1.1fr) 2fr;gap:14px}
+.held .gross{font:650 44px/1 var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em;margin:10px 0 14px;transition:color .3s}
+.teil{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--flachbg)}
+.teil i{display:block;height:100%;transition:width .5s ease}
+.legende{display:flex;flex-wrap:wrap;gap:4px 16px;margin-top:10px;font-size:13px}
+.legende b{font-family:var(--mono);font-weight:600;font-variant-numeric:tabular-nums}
+.fleck{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px}
+.kacheln{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.kachel{display:flex;flex-direction:column;gap:6px;justify-content:space-between}
+.kachel .wert{font:600 22px/1.1 var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.kachel .unter{font-size:12px;color:var(--leise)}
+.drei{display:grid;grid-template-columns:1fr minmax(300px,1.05fr) 1fr;gap:14px}
+.zwei{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.bot h2{font-size:16px;margin:0;margin-right:auto;font-weight:650}
+.bot.long h2{color:var(--long)} .bot.short h2{color:var(--short)}
+.botzahl{font:650 28px/1 var(--mono);font-variant-numeric:tabular-nums;margin:2px 0 14px}
+dl{display:grid;grid-template-columns:auto 1fr;gap:7px 12px;margin:0}
+dt{color:var(--leise)} dd{margin:0;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.trenner{grid-column:1/-1;height:1px;background:var(--linie);margin:4px 0}
+.mess{height:8px;border-radius:4px;background:var(--flachbg);position:relative;margin:12px 0 4px}
+.mess i{position:absolute;top:0;bottom:0;left:0;border-radius:4px;transition:width .5s ease}
+.mess u{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--fg);border-radius:1px;transition:left .5s ease}
+.leiter{display:flex;flex-direction:column;gap:2px;font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:12.5px}
+.sprosse{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;padding:4px 8px;border-radius:6px}
+.sprosse .l{text-align:left;color:var(--long)} .sprosse .r{text-align:right;color:var(--short)}
+.sprosse .m{text-align:center;min-width:150px} .sprosse .m small{color:var(--leise);margin-left:6px}
+.sprosse.heute{background:var(--karte2)}
+.sprosse.jetzt{background:var(--fg);color:var(--karte)} .sprosse.jetzt .l,.sprosse.jetzt .r,.sprosse.jetzt small{color:inherit}
+.sprosse.anker .m::after{content:"Anker";font-size:10px;margin-left:6px;padding:1px 6px;border-radius:999px;background:var(--flachbg);color:var(--leise)}
+.sprosse.jetzt.anker .m::after{background:transparent;border:1px solid currentColor;color:inherit}
+.leiterkopf{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;padding:0 8px 6px;font-size:11px;color:var(--leise);text-transform:uppercase;letter-spacing:.06em}
+.leiterkopf span:nth-child(2){min-width:150px;text-align:center} .leiterkopf span:last-child{text-align:right}
+svg{width:100%;height:auto;display:block} svg text{font:11px var(--mono);fill:var(--leise)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:7px 8px;border-bottom:1px solid var(--linie);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{font:600 11px var(--text);color:var(--leise);text-transform:uppercase;letter-spacing:.06em;position:sticky;top:0;background:var(--karte)}
+tbody tr:last-child td{border-bottom:0} td{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.rollen{overflow:auto;max-height:330px}
+.marke2{display:inline-block;font:600 10.5px var(--text);padding:1px 7px;border-radius:999px;letter-spacing:.03em}
+.marke2.long{background:var(--longbg);color:var(--long)} .marke2.short{background:var(--shortbg);color:var(--short)}
+.balken{height:7px;background:var(--flachbg);border-radius:4px;position:relative;overflow:hidden;min-width:90px}
+.balken i{position:absolute;top:0;bottom:0;border-radius:4px}
+.tabs{display:flex;gap:4px;background:var(--flachbg);padding:3px;border-radius:8px}
+.tabs button{font:600 12px var(--text);padding:4px 12px;border:0;border-radius:6px;background:transparent;color:var(--leise);cursor:pointer}
+.tabs button[aria-pressed=true]{background:var(--karte);color:var(--fg);box-shadow:var(--schatten)}
+.tabs button:focus-visible{outline:2px solid var(--long);outline-offset:1px}
+.leer{padding:26px 12px;text-align:center;color:var(--leise)}
+details summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px} details summary::-webkit-details-marker{display:none}
+details summary::before{content:"▸";color:var(--leise)} details[open] summary::before{content:"▾"}
+pre{margin:12px 0 0;font:12px/1.55 var(--mono);white-space:pre-wrap;word-break:break-word;max-height:280px;overflow:auto;color:var(--leise)}
+.start{padding:60px 20px;text-align:center}
+#inhalt{display:flex;flex-direction:column;gap:14px}
+@media (max-width:1000px){.held,.drei,.zwei{grid-template-columns:1fr}.kacheln{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:520px){.kacheln{grid-template-columns:1fr}.held .gross{font-size:34px}.sprosse .m,.leiterkopf span:nth-child(2){min-width:110px}}
 </style></head><body><div class="wrap">
-<header><h1>Nasdaq-Grid</h1><span class="leise" id="zeile">lädt …</span></header>
-<div class="raster" id="kacheln"></div>
-<div class="zwei" id="bots"></div>
-<div class="karte"><div class="kopf"><h2 style="color:inherit">Tagesergebnis im Verlauf</h2><span class="leise" id="kurveinfo"></span></div><div id="kurve"></div></div>
-<div class="karte"><div class="kopf"><h2 style="color:inherit">Abgeschlossene Tage</h2></div><div class="rollen" id="tage"></div></div>
-<div class="karte"><div class="kopf"><h2 style="color:inherit">Log</h2><div class="tabs" id="logtabs"></div></div><pre id="log"></pre></div>
-</div>
+<div class="top"><div class="marke"><span class="punkt" id="punkt"></span>Nasdaq-Grid</div><span id="chips" style="display:contents"></span></div>
+<div id="leerstart" class="karte start" hidden><div style="font-size:17px;font-weight:650;margin-bottom:6px">Noch kein Bot gestartet</div><div class="leise">start-long.bat und start-short.bat ausführen – die Übersicht füllt sich dann von selbst.</div></div>
+<div id="inhalt" hidden>
+  <div class="held"><div class="karte" id="held"></div><div class="kacheln" id="kacheln"></div></div>
+  <div class="drei"><div id="botlong"></div><div class="karte"><div class="kopf"><span class="titel">Grid-Leiter</span><span class="leise" id="leiterinfo"></span></div><div id="leiter"></div></div><div id="botshort"></div></div>
+  <div class="karte"><div class="kopf"><span class="titel">Tagesergebnis im Verlauf</span><span id="kurvelegende" class="leise"></span></div><div id="kurve"></div></div>
+  <div class="zwei">
+    <div class="karte"><div class="kopf"><span class="titel">Offene Positionen</span><span class="leise" id="posinfo"></span><div class="tabs" id="postabs"></div></div><div class="rollen" id="pos"></div></div>
+    <div class="karte"><div class="kopf"><span class="titel">Letzte Orders</span><span class="leise" id="dealinfo"></span></div><div class="rollen" id="deals"></div></div>
+  </div>
+  <div class="karte"><div class="kopf"><span class="titel">Vergangene Tage</span><span class="leise" id="tageinfo"></span></div><div id="gesamtkurve"></div><div class="rollen" id="tage" style="margin-top:10px"></div></div>
+  <div class="karte"><details id="logbox"><summary><span class="titel" style="margin-right:auto">Log</span><span class="tabs" id="logtabs"></span></summary><pre id="log"></pre></details></div>
+</div></div>
 <script>
-var logBot="long";
-function geld(v,w){if(v==null)return"–";var s=(v>0?"+":"")+v.toLocaleString("de-DE",{minimumFractionDigits:2,maximumFractionDigits:2});return s+(w?" "+w:"")}
-function zahl(v,n){return v==null?"–":Number(v).toLocaleString("de-DE",{minimumFractionDigits:n,maximumFractionDigits:n})}
-function kl(v){return v>0?"gut":v<0?"schlecht":""}
-function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
-function zustand(b){
-  if(b.alter_s>30)return['<span class="pille schlecht">Bot antwortet nicht · '+Math.round(b.alter_s)+' s</span>'];
-  var p=[b.scharf?'<span class="pille gut">scharf</span>':'<span class="pille warn">Trockenlauf</span>'];
-  p.push(b.aktiv?'<span class="pille gut">läuft</span>':'<span class="pille flach">wartet auf '+esc(b.start)+' Serverzeit</span>');return p}
+var wahl={pos:"long",log:"long"},alt={};
+function $(id){return document.getElementById(id)}
+function setze(id,html){if(alt[id]!==html){alt[id]=html;$(id).innerHTML=html}}
+function zahl(v,n){return v==null||isNaN(v)?"–":Number(v).toLocaleString("de-DE",{minimumFractionDigits:n,maximumFractionDigits:n})}
+function geld(v,w){if(v==null||isNaN(v))return"–";return(v>0?"+":v<0?"−":"")+zahl(Math.abs(v),2)+(w?" "+w:"")}
+function kl(v){return v>0.004?"gut":v<-0.004?"schlecht":""}
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function vz(n){return(n>0?"+":n<0?"−":"±")+Math.abs(n)}
+function datum(t){return t?t.split("-").reverse().join("."):"–"}
+function tot(b){return b.alter_s>30}
+
 function botKarte(b){
-  var abw=Math.abs((b.soll_lot||0)-(b.ist_lot||0))>0.001, max=Math.max(b.start_lot*2,0.01);
-  var soll=Math.min(100,b.soll_lot/max*100), ist=Math.min(100,b.ist_lot/max*100);
-  var schritt=b.anker?b.anker*b.schritt_prozent/100:null, hoch=b.anker?b.anker+(b.stufe+1)*schritt:null, runter=b.anker?b.anker+(b.stufe-1)*schritt:null;
-  return '<div class="karte '+b.bot+'"><div class="kopf"><h2>'+(b.bot==="long"?"Long-Bot":"Short-Bot")+'</h2>'+zustand(b).join("")+'</div>'+
-  '<dl><dt>Konto</dt><dd>'+esc(b.konto)+'</dd>'+
-  '<dt>Tagesergebnis</dt><dd class="'+kl(b.tagesergebnis)+'">'+geld(b.tagesergebnis,b.waehrung)+'</dd>'+
-  '<dt>davon offen / realisiert</dt><dd>'+geld(b.offen)+' / '+geld(b.realisiert)+'</dd>'+
-  '<dt>Stufe</dt><dd>'+(b.stufe>0?"+":"")+b.stufe+' <span class="leise">('+zahl(b.stufe*b.schritt_prozent,1)+' % vom Anker)</span></dd>'+
-  '<dt>Anker / Kurs</dt><dd>'+zahl(b.anker,2)+' / '+zahl(b.kurs,2)+'</dd>'+
-  '<dt>nächste Stufe oben / unten</dt><dd>'+zahl(hoch,2)+' / '+zahl(runter,2)+'</dd>'+
-  '<dt>Soll / Ist</dt><dd class="'+(abw?"schlecht":"")+'">'+zahl(b.soll_lot,2)+' / '+zahl(b.ist_lot,2)+' Lot</dd></dl>'+
-  '<div class="balken" title="Ist-Lot gegen doppeltes Start-Lot"><i style="left:0;width:'+ist+'%;background:var(--'+b.bot+')"></i><i style="left:calc('+soll+'% - 1px);width:2px;background:var(--fg)"></i></div>'+
-  '<dl><dt>Guthaben / Equity</dt><dd>'+zahl(b.guthaben,2)+' / '+zahl(b.equity,2)+' '+esc(b.waehrung)+'</dd>'+
-  '<dt>Margin-Level</dt><dd class="'+(b.margin_level!=null&&b.margin_level<150?"schlecht":"")+'">'+(b.margin_level==null?"–":zahl(b.margin_level,0)+" %")+'</dd>'+
-  '<dt>Volumen heute</dt><dd>'+zahl(b.volumen,2)+' Lot in '+b.deals+' Deals</dd></dl></div>'}
-function kurve(bots){
-  var reihen=[],alle=[];["long","short"].forEach(function(n){if(bots[n]&&bots[n].kurve&&bots[n].kurve.length){reihen.push([n,bots[n].kurve]);alle=alle.concat(bots[n].kurve)}});
-  if(bots.long&&bots.short&&bots.long.kurve&&bots.short.kurve){var m={};bots.short.kurve.forEach(function(p){m[p[0]]=p[1]});var summe=bots.long.kurve.filter(function(p){return p[0] in m}).map(function(p){return[p[0],p[1]+m[p[0]]]});if(summe.length){reihen.push(["paar",summe]);alle=alle.concat(summe)}}
-  if(!alle.length)return'<div class="leer">Noch keine Werte für heute.</div>';
-  var x0=Math.min.apply(null,alle.map(function(p){return p[0]})),x1=Math.max.apply(null,alle.map(function(p){return p[0]}));if(x1-x0<30)x1=x0+30;
+  var name=b.bot==="long"?"Long-Bot":"Short-Bot",abw=Math.abs((b.soll_lot||0)-(b.ist_lot||0))>0.001,max=Math.max(b.start_lot*2,0.01);
+  var pillen=tot(b)?'<span class="pille schlecht">antwortet nicht · '+Math.round(b.alter_s)+' s</span>':
+    (b.scharf?'<span class="pille gut">scharf</span>':'<span class="pille warn">Trockenlauf</span>')+(b.aktiv?'<span class="pille gut">läuft</span>':'<span class="pille flach">wartet auf '+esc(b.start)+'</span>');
+  return '<div class="karte bot '+b.bot+'"><div class="kopf"><h2>'+name+'</h2>'+pillen+'</div>'+
+   '<div class="titel">Heute</div><div class="botzahl '+kl(b.tagesergebnis)+'">'+geld(b.tagesergebnis,b.waehrung)+'</div>'+
+   '<dl><dt>offen</dt><dd class="'+kl(b.offen)+'">'+geld(b.offen)+'</dd><dt>realisiert</dt><dd class="'+kl(b.realisiert)+'">'+geld(b.realisiert)+'</dd>'+
+   '<dt>Grid-Ertrag</dt><dd class="'+kl(b.grid_ertrag)+'">'+geld(b.grid_ertrag)+' <span class="leise">· '+b.runden+' Runden</span></dd>'+
+   '<div class="trenner"></div><dt>Position</dt><dd'+(abw?' class="schlecht"':'')+'>'+zahl(b.ist_lot,2)+' Lot <span class="leise">· Soll '+zahl(b.soll_lot,2)+'</span></dd></dl>'+
+   '<div class="mess"><i style="width:'+Math.min(100,b.ist_lot/max*100)+'%;background:var(--'+b.bot+')"></i><u style="left:calc('+Math.min(100,b.soll_lot/max*100)+'% - 1px)"></u></div>'+
+   '<dl style="margin-top:12px"><dt>Positionen</dt><dd>'+b.positionen+'</dd><dt>Volumen heute</dt><dd>'+zahl(b.volumen,2)+' Lot <span class="leise">· '+b.deals+' Deals</span></dd>'+
+   '<div class="trenner"></div><dt>Konto</dt><dd>'+esc(b.konto)+'</dd><dt>Guthaben</dt><dd>'+zahl(b.guthaben,2)+'</dd><dt>Equity</dt><dd>'+zahl(b.equity,2)+' '+esc(b.waehrung)+'</dd>'+
+   '<dt>Margin-Level</dt><dd'+(b.margin_level!=null&&b.margin_level<150?' class="schlecht"':'')+'>'+(b.margin_level==null?"–":zahl(b.margin_level,0)+" %")+'</dd></dl></div>'}
+
+function leiter(e){
+  if(!e.anker)return'<div class="leer">Noch kein Anker – das Raster startet um '+esc(e.start)+' Serverzeit.</div>';
+  var s='<div class="leiterkopf"><span>Long hält</span><span>Stufe</span><span>Short hält</span></div><div class="leiter">',c=e.stufe;
+  for(var j=c+6;j>=c-6;j--){
+    var preis=e.anker*(1+j*e.schritt_prozent/100),lo=Math.max(0,e.start_lot-e.schritt_lot*j),sh=Math.max(0,e.start_lot+e.schritt_lot*j);
+    var cls="sprosse"+(j===c?" jetzt":(j>=e.stufe_min&&j<=e.stufe_max?" heute":""))+(j===0?" anker":"");
+    s+='<div class="'+cls+'"><span class="l">'+zahl(lo,2)+'</span><span class="m">'+zahl(preis,2)+'<small>'+vz(j)+'</small></span><span class="r">'+zahl(sh,2)+'</span></div>'}
+  return s+'</div>'}
+
+function rahmen(reihen,hoehe){
+  var alle=[];reihen.forEach(function(r){alle=alle.concat(r.p)});
+  var x0=Math.min.apply(null,alle.map(function(p){return p[0]})),x1=Math.max.apply(null,alle.map(function(p){return p[0]}));if(x1-x0<1)x1=x0+1;
   var lo=Math.min(0,Math.min.apply(null,alle.map(function(p){return p[1]}))),hi=Math.max(0,Math.max.apply(null,alle.map(function(p){return p[1]})));if(hi-lo<1){hi+=1;lo-=1}
-  var W=1000,H=260,L=64,R=12,T=10,B=26,X=function(v){return L+(v-x0)/(x1-x0)*(W-L-R)},Y=function(v){return T+(hi-v)/(hi-lo)*(H-T-B)};
-  var s='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Tagesergebnis">';
-  [lo,0,hi].forEach(function(v){s+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(v)+'" y2="'+Y(v)+'" stroke="var(--linie)"/><text x="'+(L-6)+'" y="'+(Y(v)+4)+'" text-anchor="end">'+zahl(v,0)+'</text>'});
-  for(var h=Math.ceil(x0/60);h*60<=x1;h+=Math.max(1,Math.round((x1-x0)/60/8)))s+='<text x="'+X(h*60)+'" y="'+(H-8)+'" text-anchor="middle">'+("0"+h).slice(-2)+':00</text>';
-  var farbe={long:"var(--long)",short:"var(--short)",paar:"var(--fg)"};
-  reihen.forEach(function(r){s+='<polyline fill="none" stroke="'+farbe[r[0]]+'" stroke-width="'+(r[0]==="paar"?2.5:1.5)+'" points="'+r[1].map(function(p){return X(p[0]).toFixed(1)+","+Y(p[1]).toFixed(1)}).join(" ")+'"/>'});
+  var W=1200,H=hoehe,L=66,R=14,T=12,B=26;
+  return{W:W,H:H,L:L,R:R,x0:x0,x1:x1,lo:lo,hi:hi,X:function(v){return L+(v-x0)/(x1-x0)*(W-L-R)},Y:function(v){return T+(hi-v)/(hi-lo)*(H-T-B)}}}
+function achsen(g){var s="";[g.lo,0,g.hi].forEach(function(v){s+='<line x1="'+g.L+'" x2="'+(g.W-g.R)+'" y1="'+g.Y(v)+'" y2="'+g.Y(v)+'" stroke="var(--linie)"'+(v===0?'':' stroke-dasharray="3 4"')+'/><text x="'+(g.L-8)+'" y="'+(g.Y(v)+4)+'" text-anchor="end">'+zahl(v,0)+'</text>'});return s}
+function kurve(b){
+  var r=[];["long","short"].forEach(function(n){if(b[n]&&b[n].kurve&&b[n].kurve.length)r.push({n:n,p:b[n].kurve})});
+  if(b.long&&b.short&&b.long.kurve&&b.short.kurve){var m={};b.short.kurve.forEach(function(p){m[p[0]]=p[1]});var su=b.long.kurve.filter(function(p){return p[0] in m}).map(function(p){return[p[0],p[1]+m[p[0]]]});if(su.length)r.push({n:"paar",p:su})}
+  if(!r.length)return'<div class="leer">Noch keine Werte für heute.</div>';
+  var g=rahmen(r,280),s='<svg viewBox="0 0 '+g.W+' '+g.H+'" role="img" aria-label="Tagesergebnis im Verlauf">'+achsen(g);
+  var schritt=Math.max(1,Math.round((g.x1-g.x0)/60/9));for(var h=Math.ceil(g.x0/60);h*60<=g.x1;h+=schritt)s+='<text x="'+g.X(h*60)+'" y="'+(g.H-7)+'" text-anchor="middle">'+("0"+h).slice(-2)+':00</text>';
+  var f={long:"var(--long)",short:"var(--short)",paar:"var(--fg)"};
+  r.forEach(function(x){var pts=x.p.map(function(p){return g.X(p[0]).toFixed(1)+","+g.Y(p[1]).toFixed(1)}).join(" ");
+    if(x.n==="paar")s+='<polygon fill="var(--fg)" opacity=".06" points="'+g.X(x.p[0][0])+','+g.Y(0)+' '+pts+' '+g.X(x.p[x.p.length-1][0])+','+g.Y(0)+'"/>';
+    s+='<polyline fill="none" stroke="'+f[x.n]+'" stroke-width="'+(x.n==="paar"?2.4:1.4)+'" stroke-linejoin="round" points="'+pts+'"/>';
+    var z=x.p[x.p.length-1];s+='<circle cx="'+g.X(z[0])+'" cy="'+g.Y(z[1])+'" r="'+(x.n==="paar"?4:3)+'" fill="'+f[x.n]+'"/>'});
   return s+'</svg>'}
-function tage(bots){
-  var m={};["long","short"].forEach(function(n){((bots[n]||{}).verlauf||[]).forEach(function(e){(m[e.tag]=m[e.tag]||{})[n]=e})});
-  var ks=Object.keys(m).sort().reverse();if(!ks.length)return'<div class="leer">Noch kein abgeschlossener Tag.</div>';
-  var max=Math.max.apply(null,ks.map(function(k){return Math.abs(((m[k].long||{}).ergebnis||0)+((m[k].short||{}).ergebnis||0))}))||1;
-  var s='<table><thead><tr><th>Tag</th><th>Long</th><th>Short</th><th>Paar</th><th style="width:30%"></th><th>Volumen</th></tr></thead><tbody>';
-  ks.slice(0,60).forEach(function(k){var l=(m[k].long||{}).ergebnis,h=(m[k].short||{}).ergebnis,p=(l||0)+(h||0),v=((m[k].long||{}).volumen||0)+((m[k].short||{}).volumen||0),w=Math.abs(p)/max*50;
-    s+='<tr><td>'+k.split("-").reverse().join(".")+'</td><td class="mono '+kl(l)+'">'+geld(l)+'</td><td class="mono '+kl(h)+'">'+geld(h)+'</td><td class="mono '+kl(p)+'"><b>'+geld(p)+'</b></td>'+
-    '<td><div class="balken"><i style="'+(p>=0?"left:50%":"right:50%")+';width:'+w+'%;background:var(--'+(p>=0?"gut":"schlecht")+')"></i></div></td><td class="mono">'+zahl(v,2)+'</td></tr>'});
+
+function tageDaten(b){var m={};["long","short"].forEach(function(n){((b[n]||{}).verlauf||[]).forEach(function(e){(m[e.tag]=m[e.tag]||{})[n]=e})});
+  return Object.keys(m).sort().map(function(k){var l=m[k].long||{},s=m[k].short||{};return{tag:k,long:l.ergebnis,short:s.ergebnis,paar:(l.ergebnis||0)+(s.ergebnis||0),vol:(l.volumen||0)+(s.volumen||0),runden:Math.max(l.runden||0,s.runden||0),grid:(l.grid_ertrag||0)+(s.grid_ertrag||0),min:l.stufe_min!=null?l.stufe_min:s.stufe_min,max:l.stufe_max!=null?l.stufe_max:s.stufe_max}})}
+function gesamtKurve(t){
+  if(t.length<2)return"";var k=0,p=[[0,0]];t.forEach(function(x,i){k+=x.paar;p.push([i+1,k])});
+  var g=rahmen([{p:p}],150),pts=p.map(function(q){return g.X(q[0]).toFixed(1)+","+g.Y(q[1]).toFixed(1)}).join(" "),farbe=k>=0?"var(--gut)":"var(--schlecht)";
+  return'<svg viewBox="0 0 '+g.W+' '+g.H+'" role="img" aria-label="Ergebnis aller abgeschlossenen Tage, aufaddiert">'+achsen(g)+
+    '<polygon fill="'+farbe+'" opacity=".10" points="'+g.X(0)+','+g.Y(0)+' '+pts+' '+g.X(p.length-1)+','+g.Y(0)+'"/><polyline fill="none" stroke="'+farbe+'" stroke-width="2.2" stroke-linejoin="round" points="'+pts+'"/>'+
+    '<text x="'+g.X(0)+'" y="'+(g.H-7)+'" text-anchor="start">'+datum(t[0].tag)+'</text><text x="'+g.X(p.length-1)+'" y="'+(g.H-7)+'" text-anchor="end">'+datum(t[t.length-1].tag)+'</text></svg>'}
+function tageTabelle(t){
+  if(!t.length)return'<div class="leer">Noch kein abgeschlossener Tag. Der erste erscheint nach dem Tagesende.</div>';
+  var max=Math.max.apply(null,t.map(function(x){return Math.abs(x.paar)}))||1;
+  var s='<table><thead><tr><th>Tag</th><th>Long</th><th>Short</th><th>Paar</th><th style="width:22%"></th><th>Grid-Ertrag</th><th>Runden</th><th>Spanne</th><th>Volumen</th></tr></thead><tbody>';
+  t.slice().reverse().slice(0,120).forEach(function(x){var w=Math.abs(x.paar)/max*50;
+    s+='<tr><td>'+datum(x.tag)+'</td><td class="'+kl(x.long)+'">'+geld(x.long)+'</td><td class="'+kl(x.short)+'">'+geld(x.short)+'</td><td class="'+kl(x.paar)+'"><b>'+geld(x.paar)+'</b></td>'+
+    '<td><div class="balken"><i style="'+(x.paar>=0?"left:50%":"right:50%")+';width:'+w+'%;background:var(--'+(x.paar>=0?"gut":"schlecht")+')"></i></div></td>'+
+    '<td>'+geld(x.grid)+'</td><td>'+(x.runden||0)+'</td><td>'+(x.min==null?"–":vz(x.min)+" / "+vz(x.max))+'</td><td>'+zahl(x.vol,2)+'</td></tr>'});
   return s+'</tbody></table>'}
+
+function posTabelle(b){
+  var l=(b&&b.positionen_liste)||[];if(!l.length)return'<div class="leer">Keine offene Position.</div>';
+  var s='<table><thead><tr><th>Ticket</th><th>Seit</th><th>Lot</th><th>Einstieg</th><th>Ergebnis</th></tr></thead><tbody>';
+  l.forEach(function(p){s+='<tr><td>'+p.ticket+'</td><td>'+esc(p.zeit)+'</td><td>'+zahl(p.lot,2)+'</td><td>'+zahl(p.preis,2)+'</td><td class="'+kl(p.ergebnis)+'">'+geld(p.ergebnis)+'</td></tr>'});
+  return s+'</tbody></table>'}
+function dealTabelle(b){
+  var l=[];["long","short"].forEach(function(n){((b[n]||{}).deals_liste||[]).forEach(function(d){l.push({bot:n,d:d})})});
+  if(!l.length)return'<div class="leer">Heute noch keine Order.</div>';
+  l.sort(function(a,c){return a.d.zeit<c.d.zeit?1:a.d.zeit>c.d.zeit?-1:0});
+  var s='<table><thead><tr><th>Zeit</th><th>Bot</th><th>Order</th><th>Lot</th><th>Kurs</th><th>Ergebnis</th></tr></thead><tbody>';
+  l.slice(0,80).forEach(function(x){var d=x.d;s+='<tr><td>'+esc(d.zeit)+'</td><td><span class="marke2 '+x.bot+'">'+(x.bot==="long"?"Long":"Short")+'</span></td><td style="font-family:var(--text)">'+(d.kauf?"Kauf":"Verkauf")+' <span class="leise">'+(d.auf?"auf":"zu")+'</span></td><td>'+zahl(d.lot,2)+'</td><td>'+zahl(d.preis,2)+'</td><td class="'+kl(d.ergebnis)+'">'+(d.auf?'<span class="leise">–</span>':geld(d.ergebnis))+'</td></tr>'});
+  return s+'</tbody></table>'}
+function tabs(id,namen,aktiv){setze(id,namen.map(function(n){return'<button type="button" aria-pressed="'+(n===aktiv)+'" data-bot="'+n+'">'+(n==="long"?"Long":"Short")+'</button>'}).join(""))}
+
 function zeige(d){
   var b=d.bots,namen=["long","short"].filter(function(n){return b[n]});
-  if(!namen.length){document.getElementById("zeile").textContent="Noch kein Bot gestartet – start-long.bat und start-short.bat ausführen.";return}
-  var e=b[namen[0]],sum=function(f){return namen.reduce(function(a,n){return a+(b[n][f]||0)},0)};
-  var netto=(b.long?b.long.ist_lot:0)-(b.short?b.short.ist_lot:0),paar=sum("tagesergebnis");
-  document.getElementById("zeile").textContent="Serverzeit "+e.serverzeit.slice(11)+" · NAS100 "+zahl(e.kurs,2)+" · je "+zahl(e.schritt_prozent,2)+" % "+zahl(e.schritt_lot,2)+" Lot · Version "+e.version;
-  var verl=0;namen.forEach(function(n){(b[n].verlauf||[]).forEach(function(x){verl+=x.ergebnis||0})});
-  document.getElementById("kacheln").innerHTML=[["Paar heute",geld(paar,e.waehrung),kl(paar)],["Netto-Position",(netto>0?"+":"")+zahl(netto,2)+" Lot",""],["Volumen heute",zahl(sum("volumen"),2)+" Lot",""],["Equity beide Konten",zahl(sum("equity"),2),""],["Abgeschlossene Tage",geld(verl,e.waehrung),kl(verl)]]
-    .map(function(k){return'<div class="karte kachel"><span class="name">'+k[0]+'</span><span class="wert '+k[2]+'">'+k[1]+'</span></div>'}).join("");
-  document.getElementById("bots").innerHTML=namen.map(function(n){return botKarte(b[n])}).join("");
-  document.getElementById("kurve").innerHTML=kurve(b);
-  document.getElementById("kurveinfo").innerHTML='<span style="color:var(--long)">Long</span> · <span style="color:var(--short)">Short</span> · <b>Paar</b>';
-  document.getElementById("tage").innerHTML=tage(b);
-  if(!b[logBot])logBot=namen[0];
-  document.getElementById("logtabs").innerHTML=namen.map(function(n){return'<button aria-pressed="'+(n===logBot)+'" data-bot="'+n+'">'+(n==="long"?"Long":"Short")+'</button>'}).join("");
-  var pre=document.getElementById("log"),unten=pre.scrollTop+pre.clientHeight>=pre.scrollHeight-8;pre.textContent=(b[logBot].log||[]).join("\n");if(unten)pre.scrollTop=pre.scrollHeight}
-document.getElementById("logtabs").addEventListener("click",function(ev){var n=ev.target.getAttribute("data-bot");if(n){logBot=n;lade()}});
-function lade(){fetch("/api/status").then(function(r){return r.json()}).then(zeige).catch(function(){document.getElementById("zeile").textContent="Übersicht nicht erreichbar – läuft start-dashboard.bat?"})}
+  $("leerstart").hidden=namen.length>0;$("inhalt").hidden=!namen.length;
+  if(!namen.length){$("punkt").className="punkt";setze("chips","");return}
+  var e=b[namen[0]],w=e.waehrung,sum=function(f){return namen.reduce(function(a,n){return a+(b[n][f]||0)},0)};
+  var alleTot=namen.every(function(n){return tot(b[n])}),einerTot=namen.some(function(n){return tot(b[n])});
+  $("punkt").className="punkt "+(alleTot?"aus":einerTot?"":"an");
+  setze("chips",'<span class="chip">Serverzeit '+esc(e.serverzeit.slice(11))+'</span><span class="chip">NAS100 '+zahl(e.kurs,2)+'</span><span class="chip">'+zahl(e.start_lot,2)+' Lot Start · '+zahl(e.schritt_lot,2)+' je '+zahl(e.schritt_prozent,2)+' %</span><span class="chip">'+esc(e.start)+'–'+esc(e.ende)+'</span><span class="chip">v '+esc(e.version)+'</span>');
+  var paar=sum("tagesergebnis"),grid=sum("grid_ertrag"),best=sum("bestand_ergebnis"),t=tageDaten(b),vorher=t.reduce(function(a,x){return a+x.paar},0),gesamt=vorher+paar;
+  var ab=Math.abs(grid)+Math.abs(best)||1,rundenHeute=Math.max((b.long||{}).runden||0,(b.short||{}).runden||0);
+  setze("held",'<div class="titel">Paar heute</div><div class="gross '+kl(paar)+'">'+geld(paar,w)+'</div>'+
+    '<div class="teil"><i style="width:'+Math.abs(grid)/ab*100+'%;background:var(--'+(grid>=0?"gut":"schlecht")+')"></i><i style="width:'+Math.abs(best)/ab*100+'%;background:var(--'+(best>=0?"long":"schlecht")+');opacity:.55"></i></div>'+
+    '<div class="legende"><span><span class="fleck" style="background:var(--gut)"></span>Grid-Ertrag <b class="'+kl(grid)+'">'+geld(grid)+'</b></span><span><span class="fleck" style="background:var(--'+(best>=0?"long":"schlecht")+');opacity:.55"></span>Bestand und Kosten <b class="'+kl(best)+'">'+geld(best)+'</b></span></div>'+
+    '<div class="legende leise" style="margin-top:14px"><span>Long <b class="'+kl((b.long||{}).tagesergebnis)+'">'+geld((b.long||{}).tagesergebnis)+'</b></span><span>Short <b class="'+kl((b.short||{}).tagesergebnis)+'">'+geld((b.short||{}).tagesergebnis)+'</b></span></div>');
+  var netto=(b.long?b.long.ist_lot:0)-(b.short?b.short.ist_lot:0),plus=t.filter(function(x){return x.paar>0}).length,volVorher=t.reduce(function(a,x){return a+x.vol},0),rundenVorher=t.reduce(function(a,x){return a+x.runden},0);
+  var bestTag=t.length?t.reduce(function(a,x){return x.paar>a.paar?x:a}):null,schlTag=t.length?t.reduce(function(a,x){return x.paar<a.paar?x:a}):null;
+  var K=[["Gesamt-P&L",'<span class="'+kl(gesamt)+'">'+geld(gesamt,w)+'</span>',t.length+" abgeschlossene Tage + heute"],
+    ["Grid-Runden heute",String(rundenHeute),"gesamt "+(rundenVorher+rundenHeute)],
+    ["Volumen heute",zahl(sum("volumen"),2)+" Lot","gesamt "+zahl(volVorher+sum("volumen"),2)+" Lot"],
+    ["Netto-Position",(netto>0.004?"+":netto<-0.004?"−":"")+zahl(Math.abs(netto),2)+" Lot","Long "+zahl((b.long||{}).ist_lot||0,2)+" · Short "+zahl((b.short||{}).ist_lot||0,2)],
+    ["Equity beide Konten",zahl(sum("equity"),2)+" "+esc(w),"Guthaben "+zahl(sum("guthaben"),2)],
+    ["Gewinntage",t.length?plus+" von "+t.length:"–",bestTag?"bester "+geld(bestTag.paar)+" · schlechtester "+geld(schlTag.paar):"noch kein abgeschlossener Tag"]];
+  setze("kacheln",K.map(function(k){return'<div class="karte kachel"><span class="titel">'+k[0]+'</span><span class="wert">'+k[1]+'</span><span class="unter">'+k[2]+'</span></div>'}).join(""));
+  setze("botlong",b.long?botKarte(b.long):'<div class="karte leer">Long-Bot läuft nicht.</div>');
+  setze("botshort",b.short?botKarte(b.short):'<div class="karte leer">Short-Bot läuft nicht.</div>');
+  setze("leiter",leiter(e));
+  setze("leiterinfo",e.anker?"Stufe "+vz(e.stufe)+" · heute "+vz(e.stufe_min)+" bis "+vz(e.stufe_max):"");
+  setze("kurve",kurve(b));
+  setze("kurvelegende",'<span style="color:var(--long)">━ Long</span> &nbsp; <span style="color:var(--short)">━ Short</span> &nbsp; <b style="color:var(--fg)">━ Paar</b>');
+  if(!b[wahl.pos])wahl.pos=namen[0];if(!b[wahl.log])wahl.log=namen[0];
+  tabs("postabs",namen,wahl.pos);tabs("logtabs",namen,wahl.log);
+  setze("pos",posTabelle(b[wahl.pos]));setze("posinfo",b[wahl.pos].positionen+" offen · "+geld(b[wahl.pos].offen,w));
+  setze("deals",dealTabelle(b));setze("dealinfo",sum("deals")+" heute");
+  setze("gesamtkurve",gesamtKurve(t));setze("tage",tageTabelle(t));
+  setze("tageinfo",t.length?t.length+" Tage · "+geld(vorher,w)+" · "+zahl(volVorher,2)+" Lot":"");
+  var pre=$("log"),unten=pre.scrollTop+pre.clientHeight>=pre.scrollHeight-8,txt=(b[wahl.log].log||[]).join("\n");
+  if(alt.log!==txt){alt.log=txt;pre.textContent=txt;if(unten)pre.scrollTop=pre.scrollHeight}}
+["postabs","logtabs"].forEach(function(id){$(id).addEventListener("click",function(ev){var n=ev.target.getAttribute("data-bot");if(n){ev.preventDefault();wahl[id==="postabs"?"pos":"log"]=n;if(id==="logtabs")$("logbox").open=true;lade()}})});
+function lade(){fetch("/api/status").then(function(r){return r.json()}).then(zeige).catch(function(){$("punkt").className="punkt aus"})}
 lade();setInterval(lade,2000);
 </script></body></html>

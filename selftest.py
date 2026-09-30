@@ -52,6 +52,7 @@ for richtung in ("long", "short"):
     pruefe(f"{richtung} +0,2 %", lauf("2026-10-01", 120, 30061), 0.98 if richtung == "long" else 1.02)
     pruefe(f"{richtung} zurueck zum Anker", lauf("2026-10-01", 180, 29999), 1.0)
     pruefe(f"{richtung} −0,3 %", lauf("2026-10-01", 240, 29909), 1.03 if richtung == "long" else 0.97)
+    pruefe(f"{richtung} Runden", (z["hoch"], z["runter"], z["min"], z["max"]), (2, 5, -3, 2))
     pruefe(f"{richtung} Tagesende", lauf("2026-10-01", 23 * 60, 29950), 0.0)
     pruefe(f"{richtung} kein Neustart am selben Tag", lauf("2026-10-01", 23 * 60 + 30, 29950), 0.0)
     pruefe(f"{richtung} naechster Tag", lauf("2026-10-02", 61, 30200), 1.0)

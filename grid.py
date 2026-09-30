@@ -114,14 +114,21 @@ def naechster_zustand(z, heute, minute, mitte, cfg):
         z["fertig"] = True
         ereignis = "Tagesende — alles schliessen"
     if z.get("tag") != heute and start <= minute < ende:
-        z = {"tag": heute, "anker": mitte, "cur": 0, "fertig": False}
+        # hoch/runter = beruehrte Stufen je Richtung; jede Stufe hoch UND wieder runter ist eine
+        # abgeschlossene Grid-Runde (schritt_lot einmal verkauft und eine Stufe tiefer zurueckgekauft).
+        z = {"tag": heute, "anker": mitte, "cur": 0, "fertig": False, "hoch": 0, "runter": 0, "min": 0, "max": 0}
         ereignis = f"neuer Tag, Anker {mitte:.2f}, Schritt {mitte * cfg['schritt_prozent'] / 100.0:.2f} Punkte"
     aktiv = z.get("tag") == heute and not z.get("fertig")
     if aktiv:
         neu = stufe_nachfuehren(z["anker"], cfg["schritt_prozent"], z["cur"], mitte)
         if neu != z["cur"]:
             ereignis = f"Stufe {z['cur']:+d} → {neu:+d} bei {mitte:.2f}"
+            if neu > z["cur"]:
+                z["hoch"] = z.get("hoch", 0) + (neu - z["cur"])
+            else:
+                z["runter"] = z.get("runter", 0) + (z["cur"] - neu)
             z["cur"] = neu
+            z["min"] = min(z.get("min", 0), neu); z["max"] = max(z.get("max", 0), neu)
     return z, aktiv, ereignis
 
 
@@ -209,6 +216,9 @@ def main():
     fm = int(getattr(si, "filling_mode", 0) or 0)
     filling = mt5.ORDER_FILLING_FOK if fm & 1 else (mt5.ORDER_FILLING_IOC if fm & 2 else mt5.ORDER_FILLING_RETURN)
     kauf_richtung = cfg["richtung"] == "long"
+    # Kontowaehrung je Punkt je 1,0 Lot (NAS100 auf EUR-Konto ≈ 0,85)
+    _tv, _ts = float(getattr(si, "trade_tick_value", 0.0) or 0.0), float(getattr(si, "trade_tick_size", 0.0) or 0.0)
+    punktwert = _tv / _ts if _tv > 0 and _ts > 0 else float(si.trade_contract_size or 1.0)
     L(f"verbunden mit Konto {konto.login}, {sym}, Start {cfg['start_lot']} Lot, Schritt {cfg['schritt_lot']} Lot je {cfg['schritt_prozent']} %, "
       f"{'SCHARF' if cfg['scharf'] else 'TROCKENLAUF (scharf=false, es wird nichts gesendet)'}")
 
@@ -235,15 +245,18 @@ def main():
     kurve = {"tag": None, "punkte": []}       # Tagesergebnis je Minute fuer die Uebersicht
 
     def tages_deals(tag):
-        """Eigene Deals des Servertags: (Ergebnis inkl. Kosten, gehandeltes Volumen, Anzahl)."""
+        """Eigene Deals des Servertags: (Ergebnis inkl. Kosten, gehandeltes Volumen, Anzahl, letzte 60 fuer die Anzeige)."""
         try:
             von = dt.datetime.strptime(tag, "%Y-%m-%d").replace(tzinfo=dt.timezone.utc)
             ds = mt5.history_deals_get(von, von + dt.timedelta(days=1, hours=2)) or []
         except Exception:
-            return 0.0, 0.0, 0
+            return 0.0, 0.0, 0, []
         ds = [d for d in ds if int(d.magic) == MAGIC and d.symbol == sym]
         erg = sum(float(d.profit) + float(d.commission) + float(d.swap) + float(getattr(d, "fee", 0.0) or 0.0) for d in ds)
-        return erg, sum(float(d.volume) for d in ds), len(ds)
+        liste = [{"zeit": dt.datetime.utcfromtimestamp(int(d.time)).strftime("%H:%M:%S"), "kauf": int(d.type) == 0,
+                  "auf": int(getattr(d, "entry", 0)) == 0, "lot": round(float(d.volume), 2), "preis": round(float(d.price), 2),
+                  "ergebnis": round(float(d.profit), 2)} for d in sorted(ds, key=lambda d: (int(d.time), int(d.ticket)))[-60:]]
+        return erg, sum(float(d.volume) for d in ds), len(ds), liste
 
     def schreibe_json(pfad, daten):
         try:
@@ -260,7 +273,12 @@ def main():
             k = mt5.account_info(); ps = eigene()
             ist = sum(float(p.volume) for p in ps); offen = sum(float(p.profit) + float(p.swap) for p in ps)
             tag = z.get("tag")
-            real, vol, anzahl = tages_deals(tag) if tag else (0.0, 0.0, 0)
+            real, vol, anzahl, deal_liste = tages_deals(tag) if tag else (0.0, 0.0, 0, [])
+            runden = min(int(z.get("hoch", 0)), int(z.get("runter", 0)))
+            schritt_punkte = float(z.get("anker") or 0.0) * cfg["schritt_prozent"] / 100.0
+            # Was die Grid-Runden gebracht haben: je Runde schritt_lot ueber eine Stufe. Der Rest des
+            # Tagesergebnisses kommt aus dem Bestand (Start-Position), der mit dem Markt laeuft.
+            grid_ertrag = runden * cfg["schritt_lot"] * schritt_punkte * punktwert
             if kurve["tag"] != tag:
                 kurve["tag"] = tag; kurve["punkte"] = []
             minute = jetzt.hour * 60 + jetzt.minute
@@ -274,6 +292,13 @@ def main():
                 "soll_lot": soll, "ist_lot": round(ist, 2), "positionen": len(ps),
                 "offen": round(offen, 2), "realisiert": round(real, 2), "tagesergebnis": round(real + offen, 2),
                 "volumen": round(vol, 2), "deals": anzahl,
+                "runden": runden, "grid_ertrag": round(grid_ertrag, 2), "bestand_ergebnis": round(real + offen - grid_ertrag, 2),
+                "stufe_min": z.get("min", 0), "stufe_max": z.get("max", 0), "punktwert": round(punktwert, 4),
+                "positionen_liste": [{"ticket": int(p.ticket), "lot": round(float(p.volume), 2), "preis": round(float(p.price_open), 2),
+                                      "ergebnis": round(float(p.profit), 2),
+                                      "zeit": dt.datetime.utcfromtimestamp(int(p.time)).strftime("%H:%M:%S")}
+                                     for p in sorted(ps, key=lambda p: -float(p.volume))[:80]],
+                "deals_liste": deal_liste,
                 "guthaben": round(float(k.balance), 2) if k else None, "equity": round(float(k.equity), 2) if k else None,
                 "margin": round(float(k.margin), 2) if k else None, "margin_level": round(float(k.margin_level), 1) if k and k.margin else None,
                 "start": cfg["start"], "ende": cfg["ende"], "start_lot": cfg["start_lot"], "schritt_lot": cfg["schritt_lot"],
@@ -287,6 +312,8 @@ def main():
                     buch = []
                 if not any(e.get("tag") == tag for e in buch):
                     buch.append({"tag": tag, "ergebnis": round(real, 2), "volumen": round(vol, 2), "deals": anzahl,
+                                 "runden": runden, "grid_ertrag": round(grid_ertrag, 2),
+                                 "stufe_min": z.get("min", 0), "stufe_max": z.get("max", 0),
                                  "anker": z.get("anker"), "schluss_stufe": z.get("cur", 0), "guthaben": round(float(k.balance), 2) if k else None})
                     schreibe_json(verlauf_pfad, buch[-400:])
         except Exception as e:
