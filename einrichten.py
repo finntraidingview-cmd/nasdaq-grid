@@ -108,10 +108,28 @@ def pruefe(richtung):
 def main():
     print("Nasdaq-Grid einrichten. Tipp: Im jeweiligen MT5 auf Datei -> 'Dateiordner oeffnen' klicken,")
     print("oben im Explorer in die Adresszeile klicken, den Pfad kopieren und hier einfuegen (Rechtsklick).")
-    for richtung, name in (("long", "Long"), ("short", "Short")):
-        exe, login = frage_bot(name)
-        print(f"  geschrieben: {schreibe(richtung, exe, login)}")
-    if input("\nVerbindung jetzt pruefen? Dabei wird nichts gehandelt. (j/n): ").strip().lower().startswith("j"):
+    vorhanden = {}
+    for richtung in ("long", "short"):
+        try:
+            with open(os.path.join(HIER, f"config-{richtung}.json"), "r", encoding="utf-8") as f:
+                c = json.load(f)
+            if c.get("terminal_path") and int(c.get("expected_login") or 0) > 0:
+                vorhanden[richtung] = c
+        except (OSError, ValueError):
+            pass
+    neu_eingeben = True
+    if len(vorhanden) == 2:
+        # Schon eingerichtet: nicht noch einmal Pfade und Nummern abfragen (Finn 30.09.2026).
+        print("\nSchon eingerichtet:")
+        for r in ("long", "short"):
+            c = vorhanden[r]
+            print(f"  {r:<5}  Konto {c['expected_login']}  ·  {c['terminal_path']}  ·  {'scharf' if c.get('scharf') else 'Trockenlauf'}")
+        neu_eingeben = input("Enter = so lassen, n = neu eingeben: ").strip().lower().startswith("n")
+    if neu_eingeben:
+        for richtung, name in (("long", "Long"), ("short", "Short")):
+            exe, login = frage_bot(name)
+            print(f"  geschrieben: {schreibe(richtung, exe, login)}")
+    if not input("\nVerbindung jetzt pruefen? Dabei wird nichts gehandelt. (Enter = ja, n = nein): ").strip().lower().startswith("n"):
         alles = [pruefe(r) for r in ("long", "short")]
         print("\n✅ Beide Konten erreichbar." if all(a[0] for a in alles) else "\n❌ Mindestens eine Pruefung ist fehlgeschlagen — siehe oben.")
         # Nur Demokonten darf die Hilfe scharf schalten; Live-Konten schaltet man bewusst von Hand in der Config.
