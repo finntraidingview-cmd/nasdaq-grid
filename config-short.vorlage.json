@@ -1,0 +1,15 @@
+{
+  "_hinweis": "Vorlage. Kopieren nach config-short.json und die zwei Werte eintragen: terminal_path = Ordner des MT5-Terminals, in dem das SHORT-Konto eingeloggt ist; expected_login = dessen Kontonummer (Titelzeile des Terminals). Zeiten sind MT5-Serverzeit: 01:01 = 00:01 deutscher Zeit, 23:00 = 22:00 deutscher Zeit. scharf erst auf true stellen, wenn der Trockenlauf im Log richtig aussieht.",
+  "terminal_path": "C:\\MT5-Grid-Short\\terminal64.exe",
+  "portable": false,
+  "expected_login": 0,
+  "symbol": "NAS100",
+  "richtung": "short",
+  "start_lot": 1.0,
+  "schritt_lot": 0.01,
+  "schritt_prozent": 0.1,
+  "start": "01:01",
+  "ende": "23:00",
+  "max_lot": 2.0,
+  "scharf": false
+}
