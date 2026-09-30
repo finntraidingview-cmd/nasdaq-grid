@@ -10,11 +10,14 @@ PORT = 8790
 
 
 def lies(pfad, ersatz):
-    try:
-        with open(pfad, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except (OSError, ValueError):
-        return ersatz
+    # Der Bot ersetzt die Datei gerade? Dann kurz nochmal — nie mit halbem Inhalt antworten.
+    for _ in range(3):
+        try:
+            with open(pfad, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (OSError, ValueError):
+            time.sleep(0.05)
+    return ersatz
 
 
 def log_ende(pfad, zeilen=60):

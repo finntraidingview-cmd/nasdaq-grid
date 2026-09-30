@@ -258,14 +258,31 @@ def main():
                   "ergebnis": round(float(d.profit), 2)} for d in sorted(ds, key=lambda d: (int(d.time), int(d.ticket)))[-60:]]
         return erg, sum(float(d.volume) for d in ds), len(ds), liste
 
+    schreibfehler = {"gemeldet": False}
+
     def schreibe_json(pfad, daten):
+        """Windows verweigert os.replace, solange ein anderer Prozess (die Uebersicht) die Zieldatei
+        gerade offen hat — dann kurz warten und erneut, notfalls direkt schreiben (30.09.2026: Long-Bot
+        lief, seine Statusdatei blieb aber stehen)."""
+        tmp = pfad + ".tmp"
         try:
-            tmp = pfad + ".tmp"
             with open(tmp, "w", encoding="utf-8") as f:
                 json.dump(daten, f)
-            os.replace(tmp, pfad)
-        except OSError:
-            pass
+        except OSError as e:
+            if not schreibfehler["gemeldet"]:
+                L(f"(Datei {os.path.basename(pfad)} nicht schreibbar: {e})"); schreibfehler["gemeldet"] = True
+            return
+        for _ in range(8):
+            try:
+                os.replace(tmp, pfad); return
+            except OSError:
+                time.sleep(0.05)
+        try:
+            with open(pfad, "w", encoding="utf-8") as f:
+                json.dump(daten, f)
+        except OSError as e:
+            if not schreibfehler["gemeldet"]:
+                L(f"(Datei {os.path.basename(pfad)} nicht schreibbar: {e})"); schreibfehler["gemeldet"] = True
 
     def status_schreiben(jetzt, mitte, soll, aktiv):
         """Stand fuer die Uebersicht (dashboard.py). Reine Anzeige — ein Fehler hier darf den Bot nie stoppen."""
