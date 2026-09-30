@@ -331,12 +331,18 @@ def main():
         time.sleep(float(cfg["poll_interval"]))
         if time.time() >= naechste_pruefung:
             naechste_pruefung = time.time() + UPDATE_TAKT_S
-            # Lokale VERSION neu lesen: die Uebersicht kann das Update schon geholt haben.
-            neu = repo_version() or lokale_version()
-            if lokale_version() and lokale_version() != version:
-                neu = lokale_version()
+            # Update ueber update.py (laedt ueber die Commit-Kennung). Neu gestartet wird nur, wenn danach
+            # die lokale VERSION wirklich eine andere ist — der Vergleich mit .../main/VERSION allein hat
+            # wegen GitHubs 5-Minuten-Zwischenspeicher unnoetige Neustarts ausgeloest (30.09.2026).
+            try:
+                import importlib, update
+                importlib.reload(update)
+                update.lauf(leise=True)
+            except Exception:
+                pass
+            neu = lokale_version()
             if neu and version and neu != version:
-                L(f"neue Version {neu} im Repo (hier {version}) — Neustart zum Aktualisieren")
+                L(f"neue Version {neu} (lief mit {version}) — Neustart zum Aktualisieren")
                 mt5.shutdown(); sys.exit(0)
         tick = mt5.symbol_info_tick(sym)
         if tick is None or not tick.bid or not tick.ask:
