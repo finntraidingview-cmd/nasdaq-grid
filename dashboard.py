@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 """dashboard.py — Uebersicht fuer den Nasdaq-Grid im Browser, laeuft nur auf diesem PC.
 Liest die Dateien, die grid.py schreibt (status-*.json, verlauf-*.json, log-*.txt) und zeigt sie
-unter http://localhost:8790 an. Sendet keine Order und aendert nichts.  Aufruf: start-dashboard.bat"""
-import json, os, time, glob, threading
+unter http://localhost:18795 an. Sendet keine Order und aendert nichts.  Aufruf: start-dashboard.bat"""
+import json, os, sys, time, glob, threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 HIER = os.path.dirname(os.path.abspath(__file__))
-PORT = 8790
+PORT = 18795  # 8790 gehoert dem Prophos-TV-Reader (Puls) — nie teilen (02.10.2026)
 
 
 def lies(pfad, ersatz):
@@ -270,5 +270,18 @@ class H(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     print(f"Nasdaq-Grid Uebersicht: http://localhost:{PORT}  (Fenster zu = Uebersicht aus, die Bots laufen weiter)")
     threading.Thread(target=selbst_update, daemon=True).start()
+    # Browser einmal oeffnen — nicht bei jedem Neustart durch ein Update (sonst stapeln sich Tabs).
+    merker = os.path.join(HIER, ".browser-geoeffnet")
+    try:
+        frisch = time.time() - os.path.getmtime(merker) < 6 * 3600
+    except OSError:
+        frisch = False
+    if not frisch and "--kein-browser" not in sys.argv:
+        try:
+            import webbrowser
+            threading.Timer(1.5, lambda: webbrowser.open(f"http://localhost:{PORT}")).start()
+            open(merker, "w").close()
+        except Exception:
+            pass
     # Nur auf diesem PC erreichbar (127.0.0.1) — im Status stehen Kontonummern und Guthaben.
     ThreadingHTTPServer(("127.0.0.1", PORT), H).serve_forever()
