@@ -68,6 +68,7 @@ STANDARD = {
     "poll_interval": 0.5,
     "scharf": False,              # erst true = es werden wirklich Orders gesendet
     "laeuft": True,               # false = gestoppt (Knopf in der Uebersicht): alles schliessen, nichts Neues
+    "notbremse_prozent": 0.0,     # > 0: laeuft der Kurs so weit vom Anker weg, alles schliessen, Pause bis zum naechsten Tag
     "zaehl_ab": 0.0,              # Beginn des laufenden Laufs (Unix-Zeit), gesetzt von "Statistik zuruecksetzen"
 }
 
@@ -132,6 +133,13 @@ def naechster_zustand(z, heute, minute, mitte, cfg):
                 z["runter"] = z.get("runter", 0) + (z["cur"] - neu)
             z["cur"] = neu
             z["min"] = min(z.get("min", 0), neu); z["max"] = max(z.get("max", 0), neu)
+            # Notbremse (Finn 02.10.2026, nach dem 21.09.: Nasdaq lief ohne Rueckweg 3 % — das Paar wird je
+            # Stufe schiefer und verliert mehr, als die Runden bringen). Im 10-Jahres-Test bei ±1 %: schlechtester
+            # Tag −56 € statt −4.317 €. Ausgeloest wird eine Stufe hinter der Grenze, wie im Backtest.
+            bremse = float(cfg.get("notbremse_prozent") or 0.0)
+            if bremse > 0 and abs(neu) > round(bremse / cfg["schritt_prozent"]):
+                z["fertig"] = True; z["notbremse"] = True; aktiv = False
+                ereignis = f"Notbremse: Kurs {neu * cfg['schritt_prozent']:+.2f} % vom Anker — alles schliessen, Pause bis 00:01"
     return z, aktiv, ereignis
 
 
@@ -393,7 +401,8 @@ def main():
             schreibe_json(status_pfad, {
                 "bot": cfg["richtung"], "konto": int(k.login) if k else None, "waehrung": getattr(k, "currency", ""),
                 "demo": bool(k) and int(getattr(k, "trade_mode", -1)) == 0,
-                "scharf": bool(cfg["scharf"]), "laeuft": bool(cfg.get("laeuft", True)), "version": version, "geschrieben": time.time(),
+                "scharf": bool(cfg["scharf"]), "laeuft": bool(cfg.get("laeuft", True)), "version": version,
+                "notbremse": bool(z.get("notbremse")), "notbremse_prozent": float(cfg.get("notbremse_prozent") or 0.0), "geschrieben": time.time(),
                 "serverzeit": jetzt.strftime("%Y-%m-%d %H:%M:%S"), "kurs": round(mitte, 2),
                 "tag": tag, "aktiv": bool(aktiv), "anker": z.get("anker"), "stufe": z.get("cur", 0),
                 "soll_lot": soll, "ist_lot": round(ist, 2), "positionen": len(ps),

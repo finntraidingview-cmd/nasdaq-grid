@@ -57,6 +57,18 @@ for richtung in ("long", "short"):
     pruefe(f"{richtung} kein Neustart am selben Tag", lauf("2026-10-01", 23 * 60 + 30, 29950), 0.0)
     pruefe(f"{richtung} naechster Tag", lauf("2026-10-02", 61, 30200), 1.0)
     pruefe(f"{richtung} neuer Anker", z["anker"], 30200)
+# Notbremse: bei ±0,3 % (6 Stufen à 0,05 %) loest Stufe 7 aus, danach Pause bis zum naechsten Tag
+c2 = dict(cfg, schritt_prozent=0.05, notbremse_prozent=0.3)
+zz, ak, _ = naechster_zustand({}, "2026-10-02", 61, 30000.0, c2)
+zz, ak, _ = naechster_zustand(zz, "2026-10-02", 70, 30000 * 1.0030, c2)
+pruefe("Bremse noch nicht", (ak, zz.get("notbremse")), (True, None))
+zz, ak, ev = naechster_zustand(zz, "2026-10-02", 80, 30000 * 1.0036, c2)
+pruefe("Bremse greift", (ak, zz.get("notbremse"), ev.startswith("Notbremse")), (False, True, True))
+zz, ak, _ = naechster_zustand(zz, "2026-10-02", 90, 30000.0, c2)
+pruefe("bleibt aus bis morgen", ak, False)
+zz, ak, _ = naechster_zustand(zz, "2026-10-03", 61, 30100.0, c2)
+pruefe("naechster Tag frisch", (ak, zz.get("notbremse")), (True, None))
+
 # Grid-Gewinn aus echten Kursen: Kauf 100, Verkauf 101 = +1 je Lot; offener Rest bleibt im Stapel
 from grid import grid_buchen
 g1, s1, p1 = grid_buchen([], True, 100.0, 0.01)
