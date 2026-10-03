@@ -136,6 +136,7 @@ pre{margin:12px 0 0;font:12px/1.55 var(--mono);white-space:pre-wrap;word-break:b
       <label>Abstand in %<input type="number" step="0.01" min="0.01" id="e-schritt_prozent"></label>
       <label>Notbremse ± % (0 = aus)<input type="number" step="0.1" min="0" id="e-notbremse_prozent"></label>
     </div>
+    <label class="schalter"><input type="checkbox" id="e-nach_bremse_trend">Nach der Notbremse mit dem Trend weiter statt Pause</label>
     <span class="hinweis">Läuft ab dem Start, schließt um 22:00 alles und öffnet um 00:01 neu. Notbremse: läuft der Kurs so weit vom Anker weg, wird alles geschlossen bis 00:01 (im Test am besten bei 1,0).</span>
   </fieldset>
   <div id="e-meldung" hidden></div>
@@ -170,7 +171,7 @@ function tot(b){return b.alter_s>30}
 function botKarte(b){
   var name=b.bot==="long"?"Long-Bot":"Short-Bot",abw=Math.abs((b.soll_lot||0)-(b.ist_lot||0))>0.001,max=Math.max(b.start_lot*2,0.01);
   var pillen=tot(b)?'<span class="pille schlecht">antwortet nicht · '+Math.round(b.alter_s)+' s</span>':
-    (b.demo?'<span class="pille flach">Demo</span>':'<span class="pille schlecht">Live</span>')+(b.laeuft===false?'<span class="pille schlecht">gestoppt</span>':b.scharf?'<span class="pille gut">scharf</span>':'<span class="pille warn">nicht gestartet</span>')+(b.laeuft===false?'':b.aktiv?'<span class="pille gut">läuft</span>':b.notbremse?'<span class="pille warn">Notbremse · Pause bis 00:01</span>':'<span class="pille flach">Pause bis 00:01</span>');
+    (b.demo?'<span class="pille flach">Demo</span>':'<span class="pille schlecht">Live</span>')+(b.laeuft===false?'<span class="pille schlecht">gestoppt</span>':b.scharf?'<span class="pille gut">scharf</span>':'<span class="pille warn">nicht gestartet</span>')+(b.laeuft===false?'':b.aktiv&&b.trend?'<span class="pille warn">Ausbruch · mit dem Trend</span>':b.aktiv?'<span class="pille gut">läuft</span>':b.notbremse?'<span class="pille warn">Notbremse · Pause bis 00:01</span>':'<span class="pille flach">Pause bis 00:01</span>');
   return '<div class="karte bot '+b.bot+'"><div class="kopf"><h2>'+name+'</h2>'+pillen+'</div>'+
    '<div class="titel">Dieser Lauf</div><div class="botzahl '+kl(b.lauf_ergebnis)+'">'+geld(b.lauf_ergebnis,b.waehrung)+'</div>'+
    '<dl style="margin-bottom:7px"><dt>heute</dt><dd class="'+kl(b.tagesergebnis)+'">'+geld(b.tagesergebnis)+'</dd></dl>'+
@@ -262,7 +263,7 @@ function zeige(d){
   var e=b[namen[0]],w=e.waehrung,sum=function(f){return namen.reduce(function(a,n){return a+(b[n][f]||0)},0)};
   var alleTot=namen.every(function(n){return tot(b[n])}),einerTot=namen.some(function(n){return tot(b[n])});
   $("punkt").className="punkt "+(alleTot?"aus":einerTot?"":"an");
-  setze("chips",'<span class="chip">NAS100 '+zahl(e.kurs,2)+'</span><span class="chip">'+zahl(e.start_lot,2)+' Lot Start · '+zahl(e.schritt_lot,2)+' je '+zahl(e.schritt_prozent,2)+' %'+(e.notbremse_prozent?' · Bremse ±'+zahl(e.notbremse_prozent,1)+' %':'')+'</span><span class="chip">v '+esc(e.version)+'</span>');
+  setze("chips",'<span class="chip">NAS100 '+zahl(e.kurs,2)+'</span><span class="chip">'+zahl(e.start_lot,2)+' Lot Start · '+zahl(e.schritt_lot,2)+' je '+zahl(e.schritt_prozent,2)+' %'+(e.notbremse_prozent?' · Bremse ±'+zahl(e.notbremse_prozent,1)+' %'+(e.nach_bremse_trend?' → Trend':''):'')+'</span><span class="chip">v '+esc(e.version)+'</span>');
   var paar=sum("tagesergebnis"),laufErg=sum("lauf_ergebnis"),real=sum("realisiert"),off=sum("offen"),t=tageDaten(b);
   var seit=Math.min.apply(null,namen.map(function(n){return b[n].lauf_seit||d.jetzt}));
   var ab=Math.abs(real)+Math.abs(off)||1;
@@ -311,7 +312,7 @@ function kontoArt(r){var b=letzterStatus[r];if(!b)return"";if(tot(b))return"Bot 
 function einstOeffnen(){
   fetch("/api/einstellungen").then(function(r){return r.json()}).then(function(c){geladen=c;$("e-meldung").hidden=true;
     ["long","short"].forEach(function(r){feld(r+"-konto").value=c[r].expected_login||"";feld(r+"-art").textContent=kontoArt(r)});
-    var g=c.long;["start_lot","schritt_lot","schritt_prozent","notbremse_prozent"].forEach(function(k){feld(k).value=g[k]||0});
+    var g=c.long;["start_lot","schritt_lot","schritt_prozent","notbremse_prozent"].forEach(function(k){feld(k).value=g[k]||0});feld("nach_bremse_trend").checked=!!g.nach_bremse_trend;
     $("einstkarte").hidden=false;$("einstknopf").setAttribute("aria-expanded","true");feld("long-konto").focus()})
    .catch(function(){alert("Einstellungen nicht erreichbar")})}
 function einstSchliessen(){$("einstkarte").hidden=true;$("einstknopf").setAttribute("aria-expanded","false")}
@@ -319,7 +320,7 @@ $("einstknopf").addEventListener("click",function(){if($("einstkarte").hidden)ei
 $("e-abbrechen").addEventListener("click",einstSchliessen);
 $("einstkarte").addEventListener("submit",function(ev){
   ev.preventDefault();
-  var daten={gemeinsam:{}};["start_lot","schritt_lot","schritt_prozent","notbremse_prozent"].forEach(function(k){daten.gemeinsam[k]=feld(k).value});
+  var daten={gemeinsam:{}};["start_lot","schritt_lot","schritt_prozent","notbremse_prozent"].forEach(function(k){daten.gemeinsam[k]=feld(k).value});daten.gemeinsam.nach_bremse_trend=feld("nach_bremse_trend").checked;
   ["long","short"].forEach(function(r){daten[r]={expected_login:feld(r+"-konto").value.trim()}});
   senden("/api/einstellungen",daten,function(a){einstMeldung(a.ok?"gut":"schlecht",a.meldung)})});
 function senden(pfad,daten,fertig){

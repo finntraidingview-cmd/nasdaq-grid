@@ -122,6 +122,7 @@ def einstellungen_speichern(neu):
         gemeinsam = {"start_lot": round(float(g["start_lot"]), 2), "schritt_lot": round(float(g["schritt_lot"]), 2),
                      "schritt_prozent": round(float(g["schritt_prozent"]), 3),
                      "notbremse_prozent": round(float(g.get("notbremse_prozent") or 0), 2),
+                     "nach_bremse_trend": bool(g.get("nach_bremse_trend")),
                      "start": str(g.get("start") or alt["long"].get("start") or "01:01"), "ende": str(g.get("ende") or alt["long"].get("ende") or "23:00")}
     except (KeyError, ValueError, TypeError):
         return False, "Start-Lot, Lot je Stufe und Abstand muessen ausgefuellt sein."

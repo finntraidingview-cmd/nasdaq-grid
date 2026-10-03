@@ -69,6 +69,7 @@ STANDARD = {
     "scharf": False,              # erst true = es werden wirklich Orders gesendet
     "laeuft": True,               # false = gestoppt (Knopf in der Uebersicht): alles schliessen, nichts Neues
     "notbremse_prozent": 0.0,     # > 0: laeuft der Kurs so weit vom Anker weg, alles schliessen, Pause bis zum naechsten Tag
+    "nach_bremse_trend": False,   # true: nach der Notbremse nicht pausieren, sondern bis Tagesende mit dem Ausbruch gehen
     "zaehl_ab": 0.0,              # Beginn des laufenden Laufs (Unix-Zeit), gesetzt von "Statistik zuruecksetzen"
 }
 
@@ -93,8 +94,13 @@ def stufe_nachfuehren(anker, schritt_prozent, cur, mitte):
     return cur
 
 
-def soll_volumen(richtung, start_lot, schritt_lot, cur, max_lot, vol_step=0.01):
-    """Betrag des Soll-Volumens in der Richtung des Bots (nie negativ)."""
+def soll_volumen(richtung, start_lot, schritt_lot, cur, max_lot, vol_step=0.01, trend=False):
+    """Betrag des Soll-Volumens in der Richtung des Bots (nie negativ).
+    trend=True (nach der Notbremse): kein Startbestand, Long haelt je erreichter Stufe ueber dem Anker eine
+    Einheit, Short je Stufe darunter — dieselbe Stufen-Logik, nur andersherum."""
+    if trend:
+        v = schritt_lot * max(0, cur) if richtung == "long" else schritt_lot * max(0, -cur)
+        return runde(max(0.0, min(float(max_lot), v)), vol_step)
     if richtung == "long":
         v = start_lot - schritt_lot * cur      # steigt der Markt, wird verkauft
     else:
@@ -137,9 +143,16 @@ def naechster_zustand(z, heute, minute, mitte, cfg):
             # Stufe schiefer und verliert mehr, als die Runden bringen). Im 10-Jahres-Test bei ±1 %: schlechtester
             # Tag −56 € statt −4.317 €. Ausgeloest wird eine Stufe hinter der Grenze, wie im Backtest.
             bremse = float(cfg.get("notbremse_prozent") or 0.0)
-            if bremse > 0 and abs(neu) > round(bremse / cfg["schritt_prozent"]):
-                z["fertig"] = True; z["notbremse"] = True; aktiv = False
-                ereignis = f"Notbremse: Kurs {neu * cfg['schritt_prozent']:+.2f} % vom Anker — alles schliessen, Pause bis 00:01"
+            if bremse > 0 and not z.get("trend") and abs(neu) > round(bremse / cfg["schritt_prozent"]):
+                if cfg.get("nach_bremse_trend"):
+                    # Ausbruch (Finn 04.10.2026, Tick-Test 35 Monate: +1.830 €/Jahr statt −4.778 €): Grid schliessen,
+                    # neuer Anker am aktuellen Kurs, bis Tagesende Trend-Raster — Long-Bot kauft je Stufe nach oben,
+                    # Short-Bot verkauft je Stufe nach unten, jede Einheit eine Stufe zurueck wieder zu.
+                    z["trend"] = True; z["notbremse"] = True; z["anker"] = mitte; z["cur"] = 0
+                    ereignis = f"Notbremse {neu * cfg['schritt_prozent']:+.2f} % — Grid zu, ab jetzt mit dem Trend (Anker {mitte:.2f})"
+                else:
+                    z["fertig"] = True; z["notbremse"] = True; aktiv = False
+                    ereignis = f"Notbremse: Kurs {neu * cfg['schritt_prozent']:+.2f} % vom Anker — alles schliessen, Pause bis 00:01"
     return z, aktiv, ereignis
 
 
@@ -402,7 +415,8 @@ def main():
                 "bot": cfg["richtung"], "konto": int(k.login) if k else None, "waehrung": getattr(k, "currency", ""),
                 "demo": bool(k) and int(getattr(k, "trade_mode", -1)) == 0,
                 "scharf": bool(cfg["scharf"]), "laeuft": bool(cfg.get("laeuft", True)), "version": version,
-                "notbremse": bool(z.get("notbremse")), "notbremse_prozent": float(cfg.get("notbremse_prozent") or 0.0), "geschrieben": time.time(),
+                "notbremse": bool(z.get("notbremse")), "notbremse_prozent": float(cfg.get("notbremse_prozent") or 0.0),
+                "trend": bool(z.get("trend")), "nach_bremse_trend": bool(cfg.get("nach_bremse_trend")), "geschrieben": time.time(),
                 "serverzeit": jetzt.strftime("%Y-%m-%d %H:%M:%S"), "kurs": round(mitte, 2),
                 "tag": tag, "aktiv": bool(aktiv), "anker": z.get("anker"), "stufe": z.get("cur", 0),
                 "soll_lot": soll, "ist_lot": round(ist, 2), "positionen": len(ps),
@@ -508,7 +522,7 @@ def main():
                     json.dump(z, f)
             except OSError:
                 pass
-        soll = soll_volumen(cfg["richtung"], cfg["start_lot"], cfg["schritt_lot"], z.get("cur", 0), cfg["max_lot"], vol_step) if aktiv else 0.0
+        soll = soll_volumen(cfg["richtung"], cfg["start_lot"], cfg["schritt_lot"], z.get("cur", 0), cfg["max_lot"], vol_step, bool(z.get("trend"))) if aktiv else 0.0
         if time.time() - letzter_status >= 3.0:
             letzter_status = time.time()
             status_schreiben(jetzt, mitte, soll, aktiv)
@@ -526,7 +540,7 @@ def main():
             continue
         # Grid-Order = Verschieben um eine Stufe mitten im Tag. Nicht: Tagesstart (von 0 auf Start-Lot),
         # Tagesschluss/Stopp (auf 0) — die gehoeren zu Start-Position und Schluss, nicht zum Grid-Gewinn.
-        grid_order = aktiv and soll > 0 and sum(float(p.volume) for p in ps) > 0
+        grid_order = aktiv and not z.get("trend") and soll > 0 and sum(float(p.volume) for p in ps) > 0
         for auftrag in plan:
             tick = mt5.symbol_info_tick(sym)
             if auftrag[0] == "auf":

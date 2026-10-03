@@ -69,6 +69,21 @@ pruefe("bleibt aus bis morgen", ak, False)
 zz, ak, _ = naechster_zustand(zz, "2026-10-03", 61, 30100.0, c2)
 pruefe("naechster Tag frisch", (ak, zz.get("notbremse")), (True, None))
 
+# Notbremse -> Trend: Grid zu, neuer Anker, Long haelt je Stufe nach oben, Short je Stufe nach unten
+c3 = dict(cfg, schritt_prozent=0.05, notbremse_prozent=0.3, nach_bremse_trend=True)
+z3, ak, _ = naechster_zustand({}, "2026-10-05", 61, 30000.0, c3)
+z3, ak, ev = naechster_zustand(z3, "2026-10-05", 70, 30000 * 1.0036, c3)
+pruefe("Trend statt Pause", (ak, z3.get("trend"), z3["cur"], round(z3["anker"], 2)), (True, True, 0, 30108.0))
+z3, ak, _ = naechster_zustand(z3, "2026-10-05", 80, 30108 * 1.0011, c3)
+pruefe("Trend Stufe +2", z3["cur"], 2)
+pruefe("Long im Trend", soll_volumen("long", 1.0, 0.01, 2, 2.0, trend=True), 0.02)
+pruefe("Short im Trend", soll_volumen("short", 1.0, 0.01, 2, 2.0, trend=True), 0.0)
+pruefe("Short im Trend unten", soll_volumen("short", 1.0, 0.01, -3, 2.0, trend=True), 0.03)
+z3, ak, _ = naechster_zustand(z3, "2026-10-05", 90, 30108 * 1.0045, c3)
+pruefe("keine zweite Bremse im Trend", (ak, z3.get("trend"), z3.get("fertig")), (True, True, False))
+z3, ak, _ = naechster_zustand(z3, "2026-10-06", 61, 30200.0, c3)
+pruefe("naechster Tag wieder Grid", (ak, z3.get("trend")), (True, None))
+
 # Grid-Gewinn aus echten Kursen: Kauf 100, Verkauf 101 = +1 je Lot; offener Rest bleibt im Stapel
 from grid import grid_buchen
 g1, s1, p1 = grid_buchen([], True, 100.0, 0.01)
