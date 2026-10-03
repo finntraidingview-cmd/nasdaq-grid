@@ -282,8 +282,10 @@ function zeige(d){
   setze("kacheln",K.map(function(k){return'<div class="karte kachel"><span class="titel">'+k[0]+'</span><span class="wert">'+k[1]+'</span><span class="unter">'+k[2]+'</span></div>'}).join(""));
   var gL=(b.long||{}).grid_heute,gS=(b.short||{}).grid_heute,gZ=(gL||0)+(gS||0),lL=(b.long||{}).grid_lauf,lS=(b.short||{}).grid_lauf,lZ=(lL||0)+(lS||0);
   var rL=(b.long||{}).rest_heute,rS=(b.short||{}).rest_heute;
-  function gk(name,farbe,h_,l_){return'<div><span class="name" style="color:'+farbe+'">'+name+'</span><span class="wert '+kl(h_)+'">'+geld(h_,w)+'</span><span class="leise">heute · im Lauf <b class="'+kl(l_)+'" style="font-family:var(--mono)">'+geld(l_)+'</b></span></div>'}
-  setze("grid",'<div class="gridfeld">'+gk("Long","var(--long)",gL,lL)+gk("Short","var(--short)",gS,lS)+gk("Zusammen","var(--fg)",gZ,lZ)+'</div>'+
+  var nL=(b.long||{}).runden||0,nS=(b.short||{}).runden||0,nZ=Math.max(nL,nS);
+  function jeRunde(g,n){return n?zahl(g/n,3)+" € je Runde":"noch keine Runde"}
+  function gk(name,farbe,h_,l_,je){return'<div><span class="name" style="color:'+farbe+'">'+name+'</span><span class="wert '+kl(h_)+'">'+geld(h_,w)+'</span><span class="leise">'+je+'</span><span class="leise">heute · im Lauf <b class="'+kl(l_)+'" style="font-family:var(--mono)">'+geld(l_)+'</b></span></div>'}
+  setze("grid",'<div class="gridfeld">'+gk("Long","var(--long)",gL,lL,jeRunde(gL||0,nL))+gk("Short","var(--short)",gS,lS,jeRunde(gS||0,nS))+gk("Zusammen","var(--fg)",gZ,lZ,jeRunde(gZ,nZ))+'</div>'+
     '<div class="gridfuss">Rest heute aus Start-Position und Tagesschluss: Long <b class="'+kl(rL)+'">'+geld(rL)+'</b> · Short <b class="'+kl(rS)+'">'+geld(rS)+'</b> · zusammen <b class="'+kl((rL||0)+(rS||0))+'">'+geld((rL||0)+(rS||0))+'</b></div>');
   setze("botlong",b.long?botKarte(b.long):'<div class="karte leer"><b>Long-Bot</b><br>'+esc(pr.long||"läuft nicht")+'</div>');
   setze("botshort",b.short?botKarte(b.short):'<div class="karte leer"><b>Short-Bot</b><br>'+esc(pr.short||"läuft nicht")+'</div>');
